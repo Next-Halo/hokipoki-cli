@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  frps:
+    image: snowdreamtech/frps:latest
+    container_name: hokipoki-frps
+    restart: unless-stopped
+    ports:
+      - "7001:7001"   # FRP bind port (for frpc connections)
+      - "3999:3999"   # HTTP vhost port (for tunnel access)
+      - "7500:7500"   # Web dashboard
+    volumes:
+      - ./frps.toml:/etc/frp/frps.toml:ro
+    command: ["-c", "/etc/frp/frps.toml"]

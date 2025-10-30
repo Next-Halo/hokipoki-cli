@@ -1,0 +1,7 @@
+# FRP Server Configuration for HokiPoki Tunnel Service
+bindPort = 7001
+vhostHTTPPort = 3999
+auth.method = "token"
+auth.token = "hokipoki_tunnel_secret_2024"
+
+log.level = "debug"
