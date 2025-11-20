@@ -1,11 +1,23 @@
 {
-  "name": "hokipoki-cli",
-  "version": "1.0.0",
+  "name": "@actserbia/hokipoki-cli",
+  "version": "1.0.2",
   "description": "HokiPoki CLI - P2P marketplace for AI CLI tools",
   "main": "dist/cli/index.js",
   "bin": {
     "hokipoki": "./dist/cli/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/actserbia/hokipoki-cli.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx cli/index.ts",

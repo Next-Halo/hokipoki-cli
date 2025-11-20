@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 
 // Configuration (can be overridden via environment variables)
 const KEYCLOAK_ISSUER = process.env.HOKIPOKI_KEYCLOAK_ISSUER
-  || 'http://localhost:9090/realms/hokipoki';
+  || 'https://auth.hoki-poki.ai/realms/hokipoki';
 const KEYCLOAK_CLIENT_ID = process.env.HOKIPOKI_CLIENT_ID
   || 'hokipoki-cli'; // CLI uses public client (no secret required)
 const REDIRECT_URI = 'http://localhost:3333/callback';
