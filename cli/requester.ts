@@ -53,7 +53,7 @@ export class RequesterCommand {
     // AI mode: detect if running from non-TTY (AI CLI) or JSON mode
     // Can be overridden by --interactive flag
     this.aiMode = this.forceInteractive ? false : (!process.stdout.isTTY || this.jsonMode);
-    this.backendUrl = process.env.BACKEND_URL || 'http://localhost:3001/api';
+    this.backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai/api';
 
     // Parse natural language if tool not specified
     if (!this.options.tool) {

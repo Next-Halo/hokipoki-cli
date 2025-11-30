@@ -76,7 +76,7 @@ program
     chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)'))
   .option('-t, --tools <tools...>', 'AI tools available (e.g., claude codex gemini)')
   .option('-p, --port <port>', 'P2P connection port (default: 9090)', '9090')
-  .option('-s, --server <url>', 'Relay server (default: ws://localhost:8080)', 'ws://localhost:8080')
+  .option('-s, --server <url>', 'Relay server (default: wss://relay.hoki-poki.ai)', 'wss://relay.hoki-poki.ai')
   .option('--secure', 'Use LUKS-encrypted Docker sandbox (production mode)')
   .action(async (options) => {
     if (options.secure) {
@@ -110,7 +110,7 @@ program
   .option('--dir <directories...>', 'Directories to include recursively')
   .option('--all', 'Include entire repository (respects .gitignore)')
   .option('--workspace <name>', 'Workspace to publish task to (default: personal workspace)')
-  .option('-s, --server <url>', 'Relay server URL (default: ws://localhost:8080)', 'ws://localhost:8080')
+  .option('-s, --server <url>', 'Relay server URL (default: wss://relay.hoki-poki.ai)', 'wss://relay.hoki-poki.ai')
   .option('--git-host <host>', 'Git server host/IP (auto-detected if not specified)')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--interactive', 'Force interactive prompts (even in AI CLI mode)')

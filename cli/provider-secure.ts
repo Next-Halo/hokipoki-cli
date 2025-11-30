@@ -21,7 +21,7 @@ export class SecureProviderCLI {
   constructor() {
     this.oauthManager = new OAuthManager();
     this.keycloakManager = new KeycloakManager();
-    this.backendUrl = process.env.BACKEND_URL || 'http://localhost:3001/api';
+    this.backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai/api';
   }
 
   /**

@@ -67,7 +67,7 @@ export class ProviderCommand {
 
     // Fetch user's workspace IDs from profile
     try {
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+      const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
       const token = await this.keycloakManager.getToken();
       const response = await axios.get(`${backendUrl}/api/profile`, {
         headers: {
@@ -413,7 +413,7 @@ export class ProviderCommand {
       }
 
       const token = await this.keycloakManager.getToken();
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+      const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
 
       await axios.put(
         `${backendUrl}/api/tasks/${taskId}/provider`,
@@ -443,7 +443,7 @@ export class ProviderCommand {
       }
 
       const token = await this.keycloakManager.getToken();
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
+      const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
 
       await axios.post(
         `${backendUrl}/api/tasks/${taskId}/cancel`,

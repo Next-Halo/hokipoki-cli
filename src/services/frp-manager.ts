@@ -24,12 +24,12 @@ export class FrpManager {
   private configFiles: Map<number, string> = new Map();
   private frpcPath?: string;
 
-  // FRP server configuration
-  private serverAddr = process.env.FRP_SERVER_ADDR || '127.0.0.1';
+  // FRP server configuration (production defaults)
+  private serverAddr = process.env.FRP_SERVER_ADDR || 'tunnel.hoki-poki.ai';
   private serverPort = parseInt(process.env.FRP_SERVER_PORT || '7001');
-  private authToken = process.env.FRP_AUTH_TOKEN || 'hokipoki_tunnel_secret_2024';
+  private authToken = process.env.FRP_AUTH_TOKEN || '3de0f9857f79f2dca06751da275339a62d8853fe897550ff4c05d193b7378573';
   private httpPort = parseInt(process.env.FRP_HTTP_PORT || '3999');
-  private tunnelDomain = process.env.FRP_TUNNEL_DOMAIN || 'hoki.local'; // Domain for tunnel URLs (not .localhost to avoid RFC 6761 loopback)
+  private tunnelDomain = process.env.FRP_TUNNEL_DOMAIN || 'tunnel.hoki-poki.ai'; // Domain for tunnel URLs
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -189,8 +189,7 @@ export class FrpManager {
    * Create frpc configuration file
    */
   private async createFrpcConfig(port: number, subdomain: string): Promise<string> {
-    // For FRP v0.64.0+ using customDomains (subdomain feature removed)
-    const fullDomain = `${subdomain}.${this.tunnelDomain}`;
+    // For FRP v0.64.0+ using subdomain with subdomainHost on server
     const config = `serverAddr = "${this.serverAddr}"
 serverPort = ${this.serverPort}
 auth.method = "token"
@@ -201,7 +200,7 @@ name = "${subdomain}"
 type = "http"
 localIP = "127.0.0.1"
 localPort = ${port}
-customDomains = ["${fullDomain}"]
+subdomain = "${subdomain}"
 `;
 
     const configDir = path.join(os.tmpdir(), 'hokipoki-frp');
