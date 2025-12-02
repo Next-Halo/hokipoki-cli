@@ -6,9 +6,14 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
 import { OAuthManager } from '../auth/oauth-manager';
 import axios from 'axios';
 import { KeycloakManager } from '../auth/keycloak-manager';
+
+// Get the CLI package root directory (works regardless of where hokipoki is run from)
+// __dirname is available in CommonJS and points to the directory containing this file
+const CLI_ROOT = path.resolve(__dirname, '..');
 
 const execAsync = promisify(exec);
 
@@ -354,24 +359,28 @@ export class SecureProviderCLI {
    * Build secure container if not exists or outdated
    */
   private async buildSecureContainer(): Promise<void> {
+    const dockerfilePath = path.join(CLI_ROOT, 'docker', 'Dockerfile.secure-executor');
+    const buildContext = CLI_ROOT;
+
     try {
       // Check if image exists
       const inspectResult = await execAsync('docker image inspect hokipoki/secure-executor --format "{{.Created}}"');
       const imageCreated = new Date(inspectResult.stdout.trim());
 
       // Check if executor source is newer than image
-      const { stdout: statOutput } = await execAsync('stat -f "%m" container/executor.ts 2>/dev/null || stat -c "%Y" container/executor.ts 2>/dev/null');
+      const executorPath = path.join(CLI_ROOT, 'container', 'executor.ts');
+      const { stdout: statOutput } = await execAsync(`stat -f "%m" "${executorPath}" 2>/dev/null || stat -c "%Y" "${executorPath}" 2>/dev/null`);
       const sourceModified = new Date(parseInt(statOutput.trim()) * 1000);
 
       if (sourceModified > imageCreated) {
         console.log(chalk.yellow('[DEBUG] Source files newer than image, rebuilding...'));
-        await execAsync('docker build -f docker/Dockerfile.secure-executor -t hokipoki/secure-executor .');
+        await execAsync(`docker build -f "${dockerfilePath}" -t hokipoki/secure-executor "${buildContext}"`);
       } else {
         console.log(chalk.gray('[DEBUG] Secure executor image is up to date'));
       }
     } catch {
       console.log(chalk.cyan('Building secure executor image...'));
-      await execAsync('docker build -f docker/Dockerfile.secure-executor -t hokipoki/secure-executor .');
+      await execAsync(`docker build -f "${dockerfilePath}" -t hokipoki/secure-executor "${buildContext}"`);
     }
   }
 
@@ -471,7 +480,7 @@ export class SecureProviderCLI {
       console.log(chalk.green('✅ Secure executor image is ready'));
     } catch {
       console.log(chalk.yellow('⚠️  Secure executor image needs to be built'));
-      console.log(chalk.gray('Run: docker build -f docker/Dockerfile.secure-executor -t hokipoki/secure-executor .'));
+      console.log(chalk.gray(`It will be built automatically when you run 'hokipoki listen'`));
     }
   }
 

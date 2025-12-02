@@ -1,6 +1,6 @@
 {
   "name": "@actserbia/hokipoki-cli",
-  "version": "1.0.8",
+  "version": "1.1.5",
   "description": "HokiPoki CLI - P2P marketplace for AI CLI tools",
   "main": "dist/cli/index.js",
   "bin": {
@@ -16,10 +16,15 @@
   "files": [
     "dist/**/*",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "tsconfig.json",
+    "package-lock.json",
+    "container/executor.ts",
+    "config/cli-tools.ts"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "copyfiles -u 0 \"docker/**/*\" dist/",
     "dev": "tsx cli/index.ts",
     "hokipoki": "tsx cli/index.ts",
     "build-docker": "docker build -f docker/Dockerfile.secure-executor -t hokipoki/secure-executor ."
@@ -58,6 +63,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.5",
     "@types/ws": "^8.5.13",
+    "copyfiles": "^2.4.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   }

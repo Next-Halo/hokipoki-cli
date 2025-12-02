@@ -2,45 +2,26 @@
 # Zero-knowledge execution environment
 # Runs on PROVIDER'S machine, pulls code from requester's git
 
-# Stage 1: Builder
-FROM node:20-alpine AS builder
-
-WORKDIR /build
-
-# Install build dependencies
-RUN apk add --no-cache git strace
-
-# Copy source files
-COPY package.json package-lock.json tsconfig.json ./
-COPY container/executor.ts ./container/
-COPY config/cli-tools.ts ./config/
-
-# Install dependencies (including devDependencies for build)
-# Skip prepare script (husky) in Docker
-RUN npm ci --ignore-scripts
-
-# Build TypeScript
-RUN npx tsc container/executor.ts --outDir /dist --module commonjs --target es2020 --esModuleInterop --skipLibCheck
-
-# Stage 2: Minimal runtime (no shell, maximum security)
+# Single stage: Use pre-compiled JS files from npm distribution
 FROM node:20-alpine
 
-# Install git, cryptsetup for encryption, e2fsprogs for mkfs.ext4, and AI CLIs
-RUN apk add --no-cache git cryptsetup e2fsprogs && \
+# Install git, cryptsetup for encryption, e2fsprogs for mkfs.ext4, strace, and build dependencies
+RUN apk add --no-cache git cryptsetup e2fsprogs strace python3 make g++ && \
     # Install Claude Code CLI globally
     npm install -g @anthropic-ai/claude-code && \
     # Install OpenAI Codex CLI globally
     npm install -g @openai/codex && \
     # Install Google Gemini CLI globally
     npm install -g @google/gemini-cli && \
+    # Clean up build dependencies to reduce image size
+    apk del python3 make g++ && \
     # Remove ONLY apk binaries (not libs - they're needed by installed packages)
     rm -rf /sbin/apk /etc/apk /usr/share/apk
     # IMPORTANT: Keep /lib/apk - it contains package database needed for shared libs
 
-# Copy built executor and dependencies (preserve directory structure for imports)
-COPY --from=builder /dist/container/executor.js /app/container/executor.js
-COPY --from=builder /dist/config/cli-tools.js /app/config/cli-tools.js
-COPY --from=builder /usr/bin/strace /usr/bin/
+# Copy pre-compiled executor and dependencies (from dist/ folder)
+COPY container/executor.js /app/container/executor.js
+COPY config/cli-tools.js /app/config/cli-tools.js
 
 # Create workspace (node user already exists with UID 1000)
 RUN mkdir -p /workspace && \
