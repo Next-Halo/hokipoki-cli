@@ -130,7 +130,15 @@ program
       const keycloak = new KeycloakManager();
       await keycloak.login();
     } catch (error: any) {
-      console.error(chalk.red('Login failed:'), error.message);
+      // Check if error is about email verification
+      if (error.message?.includes('not verified')) {
+        // Error already printed in keycloak-manager
+        process.exit(1);
+      }
+
+      console.error(chalk.red('\n❌ Login failed:'), error.message);
+      console.log(chalk.yellow('\n💡 Don\'t have an account?'));
+      console.log(chalk.cyan('   Create one at: https://app.hoki-poki.ai/register\n'));
       process.exit(1);
     }
   });

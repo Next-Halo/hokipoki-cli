@@ -9,8 +9,14 @@ import * as net from 'net';
 import * as os from 'os';
 import * as http from 'http';
 import chalk from 'chalk';
-import { FrpManager } from '../src/services/frp-manager';
+import { FrpManager, FrpConfig } from '../src/services/frp-manager';
 import { Logger } from '../src/utils/logger';
+
+export interface EphemeralGitServerOptions {
+  taskId: string;
+  gitHost?: string;
+  tunnelConfig: FrpConfig;
+}
 
 export class EphemeralGitServer {
   private httpServer?: http.Server;
@@ -21,17 +27,22 @@ export class EphemeralGitServer {
   private frpManager: FrpManager;
   private tunnel?: { url: string; close: () => Promise<void> };
   private logger: Logger;
+  private taskId: string;
 
-  constructor(private taskId: string, gitHost?: string) {
+  constructor(options: EphemeralGitServerOptions) {
+    this.taskId = options.taskId;
     // Store temp files in user's home directory (standard CLI behavior)
     // This prevents contamination of user's project directories
-    this.tempRepoPath = path.join(os.homedir(), '.hokipoki', 'tmp', `${taskId}.git`);
+    this.tempRepoPath = path.join(os.homedir(), '.hokipoki', 'tmp', `${this.taskId}.git`);
     this.oneTimeToken = crypto.randomBytes(32).toString('hex');
-    this.gitHost = gitHost;
+    this.gitHost = options.gitHost;
 
     // Initialize logger and FRP manager
     this.logger = new Logger('EphemeralGitServer');
     this.frpManager = new FrpManager(this.logger);
+
+    // Configure FRP manager with tunnel settings
+    this.frpManager.configure(options.tunnelConfig);
   }
 
   /**

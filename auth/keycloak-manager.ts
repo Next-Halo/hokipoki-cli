@@ -24,14 +24,27 @@ interface KeycloakToken {
   id_token?: string;
 }
 
+export interface TunnelConfig {
+  token: string;
+  serverAddr: string;
+  serverPort: number;
+  tunnelDomain: string;
+  httpPort: number;
+  fetchedAt: Date;
+}
+
 export class KeycloakManager {
   private tokenStorePath: string;
+  private tunnelConfigPath: string;
   private encryptionKey: Buffer;
+  private backendUrl: string;
 
   constructor() {
     const homeDir = process.env.HOME || process.env.USERPROFILE || '';
     this.tokenStorePath = path.join(homeDir, '.hokipoki', 'keycloak_token.enc');
+    this.tunnelConfigPath = path.join(homeDir, '.hokipoki', 'tunnel_config.enc');
     this.encryptionKey = this.loadOrCreateEncryptionKey();
+    this.backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
   }
 
   private loadOrCreateEncryptionKey(): Buffer {
@@ -81,8 +94,46 @@ export class KeycloakManager {
     await this.exchangeCodeForTokens(authorizationCode, codeVerifier);
 
     const userEmail = await this.getUserEmail();
+
+    // Check if email is verified
+    const isVerified = await this.checkEmailVerified(userEmail);
+    if (!isVerified) {
+      // Delete the token - don't allow unverified login
+      try {
+        await fs.unlink(this.tokenStorePath);
+      } catch {}
+
+      console.log(chalk.red('\n❌ Email not verified'));
+      console.log(chalk.yellow(`\n📧 Please verify your email address: ${userEmail}`));
+      console.log(chalk.cyan('   Check your inbox for the verification link.'));
+      console.log(chalk.cyan('   Or visit: https://app.hoki-poki.ai/verify-email\n'));
+      throw new Error('Email not verified. Please check your inbox for the verification link.');
+    }
+
     console.log(chalk.green(`\n✅ Successfully logged in as: ${userEmail}`));
     console.log(chalk.gray('💾 Token saved securely\n'));
+  }
+
+  /**
+   * Check if user's email is verified via backend API
+   */
+  private async checkEmailVerified(email: string): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${this.backendUrl}/api/auth/check-verified?email=${encodeURIComponent(email)}`
+      );
+
+      if (!response.ok) {
+        // If we can't check, assume verified (backend might not have this endpoint yet)
+        return true;
+      }
+
+      const data = await response.json() as any;
+      return data.verified === true;
+    } catch {
+      // If check fails, assume verified (network error, etc.)
+      return true;
+    }
   }
 
   /**
@@ -630,6 +681,10 @@ export class KeycloakManager {
 
       // Delete local token file
       await fs.unlink(this.tokenStorePath);
+
+      // Also clear cached tunnel config
+      await this.clearTunnelConfig();
+
       console.log(chalk.green('✅ Logged out successfully'));
       console.log(chalk.gray('🗑️  Session terminated\n'));
     } catch {
@@ -652,5 +707,131 @@ export class KeycloakManager {
       .createHash('sha256')
       .update(verifier)
       .digest('base64url');
+  }
+
+  /**
+   * Get tunnel configuration (fetches from backend if not cached or expired)
+   * Cache expires after 24 hours to allow for token rotation
+   */
+  async getTunnelConfig(): Promise<TunnelConfig> {
+    // Try to load cached config first
+    const cached = await this.loadTunnelConfig();
+
+    if (cached) {
+      // Check if cache is still valid (less than 24 hours old)
+      const cacheAge = Date.now() - new Date(cached.fetchedAt).getTime();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (cacheAge < maxAge) {
+        return cached;
+      }
+    }
+
+    // Fetch fresh config from backend
+    return await this.fetchAndCacheTunnelConfig();
+  }
+
+  /**
+   * Fetch tunnel config from backend and cache it
+   */
+  private async fetchAndCacheTunnelConfig(): Promise<TunnelConfig> {
+    const accessToken = await this.getToken();
+
+    const response = await fetch(`${this.backendUrl}/api/tunnel/token`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to get tunnel config: ${error}`);
+    }
+
+    const data = await response.json() as any;
+
+    const config: TunnelConfig = {
+      token: data.token,
+      serverAddr: data.serverAddr,
+      serverPort: data.serverPort,
+      tunnelDomain: data.tunnelDomain,
+      httpPort: data.httpPort,
+      fetchedAt: new Date(),
+    };
+
+    // Cache the config
+    await this.storeTunnelConfig(config);
+
+    return config;
+  }
+
+  /**
+   * Store encrypted tunnel config
+   */
+  private async storeTunnelConfig(config: TunnelConfig): Promise<void> {
+    const jsonStr = JSON.stringify(config);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(
+      'aes-256-gcm',
+      this.encryptionKey,
+      iv
+    );
+
+    let encrypted = cipher.update(jsonStr, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+
+    const authTag = cipher.getAuthTag();
+
+    const encryptedData = {
+      iv: iv.toString('hex'),
+      authTag: authTag.toString('hex'),
+      data: encrypted
+    };
+
+    await fs.mkdir(path.dirname(this.tunnelConfigPath), { recursive: true });
+    await fs.writeFile(this.tunnelConfigPath, JSON.stringify(encryptedData));
+    await fs.chmod(this.tunnelConfigPath, 0o600);
+  }
+
+  /**
+   * Load and decrypt tunnel config
+   */
+  private async loadTunnelConfig(): Promise<TunnelConfig | null> {
+    try {
+      const encryptedData = JSON.parse(
+        await fs.readFile(this.tunnelConfigPath, 'utf8')
+      );
+
+      const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        this.encryptionKey,
+        Buffer.from(encryptedData.iv, 'hex')
+      );
+
+      decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
+
+      let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+
+      const config = JSON.parse(decrypted);
+      // Convert fetchedAt back to Date
+      config.fetchedAt = new Date(config.fetchedAt);
+      return config;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Clear cached tunnel config (useful when logging out)
+   */
+  async clearTunnelConfig(): Promise<void> {
+    try {
+      await fs.unlink(this.tunnelConfigPath);
+    } catch {
+      // File might not exist, that's okay
+    }
   }
 }

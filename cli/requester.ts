@@ -13,7 +13,8 @@ import axios from 'axios';
 import { MCPMessage } from '../types';
 import { P2PConnectionWS as P2PConnection } from '../p2p/connection-ws';
 import { EphemeralGitServer } from '../git-server/ephemeral-git';
-import { KeycloakManager } from '../auth/keycloak-manager';
+import { KeycloakManager, TunnelConfig } from '../auth/keycloak-manager';
+import { FrpConfig } from '../src/services/frp-manager';
 
 interface RequesterOptions {
   tool: string;
@@ -531,8 +532,27 @@ export class RequesterCommand {
     const spinner = this.jsonMode ? null : ora('Setting up ephemeral git server...').start();
 
     try {
-      // Initialize ephemeral git server
-      this.gitServer = new EphemeralGitServer(this.taskId!, this.options.gitHost);
+      // Fetch tunnel config from backend (requires authentication)
+      if (spinner) spinner.text = 'Fetching tunnel configuration...';
+      const tunnelConfig = await this.keycloakManager.getTunnelConfig();
+
+      // Convert TunnelConfig to FrpConfig
+      const frpConfig: FrpConfig = {
+        token: tunnelConfig.token,
+        serverAddr: tunnelConfig.serverAddr,
+        serverPort: tunnelConfig.serverPort,
+        tunnelDomain: tunnelConfig.tunnelDomain,
+        httpPort: tunnelConfig.httpPort
+      };
+
+      if (spinner) spinner.text = 'Setting up ephemeral git server...';
+
+      // Initialize ephemeral git server with tunnel config
+      this.gitServer = new EphemeralGitServer({
+        taskId: this.taskId!,
+        gitHost: this.options.gitHost,
+        tunnelConfig: frpConfig
+      });
 
       // Initialize with expanded file list
       await this.gitServer.initialize(this.expandedFiles || []);

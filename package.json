@@ -1,6 +1,6 @@
 {
   "name": "@actserbia/hokipoki-cli",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "HokiPoki CLI - P2P marketplace for AI CLI tools",
   "main": "dist/cli/index.js",
   "bin": {

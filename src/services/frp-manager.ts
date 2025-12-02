@@ -18,21 +18,51 @@ interface Tunnel {
   close: () => Promise<void>;
 }
 
+export interface FrpConfig {
+  token: string;
+  serverAddr: string;
+  serverPort: number;
+  tunnelDomain: string;
+  httpPort: number;
+}
+
 export class FrpManager {
   private logger: Logger;
   private processes: Map<number, ChildProcess> = new Map();
   private configFiles: Map<number, string> = new Map();
   private frpcPath?: string;
 
-  // FRP server configuration (production defaults)
-  private serverAddr = process.env.FRP_SERVER_ADDR || 'tunnel.hoki-poki.ai';
-  private serverPort = parseInt(process.env.FRP_SERVER_PORT || '7001');
-  private authToken = process.env.FRP_AUTH_TOKEN || '3de0f9857f79f2dca06751da275339a62d8853fe897550ff4c05d193b7378573';
-  private httpPort = parseInt(process.env.FRP_HTTP_PORT || '3999');
-  private tunnelDomain = process.env.FRP_TUNNEL_DOMAIN || 'tunnel.hoki-poki.ai'; // Domain for tunnel URLs
+  // FRP server configuration - must be set via configure() before creating tunnels
+  private serverAddr?: string;
+  private serverPort?: number;
+  private authToken?: string;
+  private httpPort?: number;
+  private tunnelDomain?: string;
+  private configured = false;
 
   constructor(logger: Logger) {
     this.logger = logger;
+  }
+
+  /**
+   * Configure FRP manager with tunnel settings from backend
+   * Must be called before creating any tunnels
+   */
+  configure(config: FrpConfig): void {
+    this.serverAddr = config.serverAddr;
+    this.serverPort = config.serverPort;
+    this.authToken = config.token;
+    this.tunnelDomain = config.tunnelDomain;
+    this.httpPort = config.httpPort;
+    this.configured = true;
+    this.logger.debug('FRP manager configured with tunnel settings');
+  }
+
+  /**
+   * Check if FRP manager is configured
+   */
+  isConfigured(): boolean {
+    return this.configured;
   }
 
   /**
@@ -125,6 +155,11 @@ export class FrpManager {
    * Create a tunnel for the given port
    */
   async createTunnel(options: TunnelOptions): Promise<Tunnel> {
+    // Ensure FRP manager is configured before creating tunnel
+    if (!this.configured) {
+      throw new Error('FRP manager not configured. Please login first: hokipoki login');
+    }
+
     const { port, subdomain } = options;
     const tunnelName = subdomain || this.generateSubdomain();
 
