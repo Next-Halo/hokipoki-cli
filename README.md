@@ -6,7 +6,19 @@
 
 > Switch models, not tabs. When your AI gets stuck, hop to another.
 
-A P2P marketplace for AI CLI tools. Request help from any AI model, or share your idle subscriptions to earn credits.
+**Stop paying for every AI CLI.** Keep one subscription and hop to other models when yours gets stuck, drifts, or loses context.
+
+## Why HokiPoki?
+
+Every new AI CLI launch comes with hype posts ("this changes everything!"), and suddenly you're juggling Claude, Codex, Gemini subscriptions just to stay current.
+
+But here's the thing: **different models excel at different tasks**. Claude might nail your architecture decisions while Codex crushes boilerplate generation. Instead of paying for both, why not share?
+
+HokiPoki lets you:
+- **Hop between models** when one gets stuck - different AIs solve different problems better
+- **Try before you buy** - invite a friend to your workspace and test their AI CLI instantly
+- **Share with teammates** - pool your AI CLIs (keys stay local, only encrypted requests/results are routed)
+- **Cut subscription costs** - use what you have, borrow what you need
 
 ## Prerequisites
 
