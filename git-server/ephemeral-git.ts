@@ -155,6 +155,11 @@ export class EphemeralGitServer {
 
     console.log(chalk.gray(`[Git Server] File copy summary: ${successCount} succeeded, ${failCount} failed`));
 
+    // Verify files were actually copied (critical for debugging empty repo issues)
+    if (successCount === 0 && files.length > 0) {
+      throw new Error(`Failed to copy any files. ${failCount} files failed to copy.`);
+    }
+
     // If no files specified, create a sample code file for testing
     if (files.length === 0) {
       const sampleFile = path.join(workDir, 'sort.js');
@@ -192,25 +197,34 @@ module.exports = { sort };
     const statusResult = execSync(`cd ${workDir} && git status`, { encoding: 'utf8' });
     console.log(chalk.gray(`[Git Server] Git status:\n${statusResult}`));
 
-    // Only commit if there are changes
+    // Commit and push files - with proper error handling
     try {
       console.log(chalk.gray(`[Git Server] DEBUG: Attempting git commit...`));
       const commitResult = execSync(`cd ${workDir} && git commit -m "Initial task files"`, { encoding: 'utf8', stdio: 'pipe' });
       console.log(chalk.gray(`[Git Server] Commit output:\n${commitResult}`));
 
       console.log(chalk.gray(`[Git Server] DEBUG: Pushing to origin main...`));
-      execSync(`cd ${workDir} && git push origin main`, { stdio: 'ignore' });
+      // FIXED: Capture push output instead of ignoring it
+      const pushResult = execSync(`cd ${workDir} && git push origin main 2>&1`, { encoding: 'utf8' });
+      console.log(chalk.gray(`[Git Server] Push output: ${pushResult}`));
       console.log(chalk.green(`[Git Server] Successfully committed and pushed files`));
+
+      // Verify the bare repo actually has commits
+      const headRef = execSync(`git --git-dir=${this.tempRepoPath} rev-parse HEAD`, { encoding: 'utf8' }).trim();
+      console.log(chalk.green(`[Git Server] Repository HEAD: ${headRef}`));
+
     } catch (error: any) {
-      // If commit fails (no changes), that's okay - just warn
-      console.warn(chalk.yellow('Warning: No files to commit'));
-      console.log(chalk.red(`[Git Server] DEBUG: Commit error: ${error.message}`));
+      // Log detailed error info for debugging
+      console.error(chalk.red(`[Git Server] Git operation failed: ${error.message}`));
       if (error.stderr) {
-        console.log(chalk.red(`[Git Server] DEBUG: stderr: ${error.stderr.toString()}`));
+        console.error(chalk.red(`[Git Server] stderr: ${error.stderr.toString()}`));
       }
       if (error.stdout) {
-        console.log(chalk.gray(`[Git Server] DEBUG: stdout: ${error.stdout.toString()}`));
+        console.error(chalk.red(`[Git Server] stdout: ${error.stdout.toString()}`));
       }
+
+      // DON'T silently continue - throw to prevent empty repo being served
+      throw new Error(`Failed to initialize git repository: ${error.message}`);
     }
 
     // Clean up work directory

@@ -8,6 +8,7 @@ import http from 'http';
 import { URL } from 'url';
 import chalk from 'chalk';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 
 // Configuration (can be overridden via environment variables)
 const KEYCLOAK_ISSUER = process.env.HOKIPOKI_KEYCLOAK_ISSUER
@@ -119,17 +120,12 @@ export class KeycloakManager {
    */
   private async checkEmailVerified(email: string): Promise<boolean> {
     try {
-      const response = await fetch(
-        `${this.backendUrl}/api/auth/check-verified?email=${encodeURIComponent(email)}`
+      const response = await axios.get(
+        `${this.backendUrl}/api/auth/check-verified`,
+        { params: { email } }
       );
 
-      if (!response.ok) {
-        // If we can't check, assume verified (backend might not have this endpoint yet)
-        return true;
-      }
-
-      const data = await response.json() as any;
-      return data.verified === true;
+      return response.data?.verified === true;
     } catch {
       // If check fails, assume verified (network error, etc.)
       return true;
@@ -494,29 +490,27 @@ export class KeycloakManager {
     params.set('redirect_uri', REDIRECT_URI);
     params.set('code_verifier', codeVerifier);
 
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
+    try {
+      const response = await axios.post(tokenUrl, params.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Token exchange failed: ${error}`);
+      const data = response.data;
+
+      const token: KeycloakToken = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        id_token: data.id_token,
+        expires_at: new Date(Date.now() + data.expires_in * 1000),
+      };
+
+      await this.storeToken(token);
+    } catch (error: any) {
+      const errorMsg = error.response?.data || error.message;
+      throw new Error(`Token exchange failed: ${errorMsg}`);
     }
-
-    const data = await response.json() as any;
-
-    const token: KeycloakToken = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      id_token: data.id_token,
-      expires_at: new Date(Date.now() + data.expires_in * 1000),
-    };
-
-    await this.storeToken(token);
   }
 
   /**
@@ -609,28 +603,26 @@ export class KeycloakManager {
     params.set('client_id', KEYCLOAK_CLIENT_ID);
     params.set('refresh_token', refreshToken);
 
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
+    try {
+      const response = await axios.post(tokenUrl, params.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
 
-    if (!response.ok) {
+      const data = response.data;
+
+      const token: KeycloakToken = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        id_token: data.id_token,
+        expires_at: new Date(Date.now() + data.expires_in * 1000),
+      };
+
+      await this.storeToken(token);
+    } catch {
       throw new Error('Token refresh failed. Please login again: hokipoki login');
     }
-
-    const data = await response.json() as any;
-
-    const token: KeycloakToken = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      id_token: data.id_token,
-      expires_at: new Date(Date.now() + data.expires_in * 1000),
-    };
-
-    await this.storeToken(token);
   }
 
   /**
@@ -670,9 +662,7 @@ export class KeycloakManager {
         params.set('id_token_hint', token.id_token);
 
         try {
-          await fetch(`${logoutUrl}?${params.toString()}`, {
-            method: 'GET',
-          });
+          await axios.get(`${logoutUrl}?${params.toString()}`);
         } catch (error) {
           // Continue with local logout even if remote logout fails
           console.log(chalk.yellow('⚠️  Could not reach Keycloak server, logging out locally\n'));
@@ -737,34 +727,33 @@ export class KeycloakManager {
   private async fetchAndCacheTunnelConfig(): Promise<TunnelConfig> {
     const accessToken = await this.getToken();
 
-    const response = await fetch(`${this.backendUrl}/api/tunnel/token`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    try {
+      const response = await axios.get(`${this.backendUrl}/api/tunnel/token`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get tunnel config: ${error}`);
+      const data = response.data;
+
+      const config: TunnelConfig = {
+        token: data.token,
+        serverAddr: data.serverAddr,
+        serverPort: data.serverPort,
+        tunnelDomain: data.tunnelDomain,
+        httpPort: data.httpPort,
+        fetchedAt: new Date(),
+      };
+
+      // Cache the config
+      await this.storeTunnelConfig(config);
+
+      return config;
+    } catch (error: any) {
+      const errorMsg = error.response?.data || error.message;
+      throw new Error(`Failed to get tunnel config: ${errorMsg}`);
     }
-
-    const data = await response.json() as any;
-
-    const config: TunnelConfig = {
-      token: data.token,
-      serverAddr: data.serverAddr,
-      serverPort: data.serverPort,
-      tunnelDomain: data.tunnelDomain,
-      httpPort: data.httpPort,
-      fetchedAt: new Date(),
-    };
-
-    // Cache the config
-    await this.storeTunnelConfig(config);
-
-    return config;
   }
 
   /**
