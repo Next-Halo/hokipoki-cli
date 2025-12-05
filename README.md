@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" alt="HokiPoki" width="120" />
+</p>
+
 # HokiPoki CLI
 
 > Switch models, not tabs. When your AI gets stuck, hop to another.
