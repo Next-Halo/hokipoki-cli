@@ -51,3 +51,6 @@ coverage/
 
 # Patches
 patches/
+
+# FRP server config (contains auth tokens)
+hokipoki-frps/frps.toml

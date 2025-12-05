@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" alt="HokiPoki" width="120" />
+  <img src="https://raw.githubusercontent.com/Next-Halo/hokipoki-cli/main/assets/icon.png" alt="HokiPoki" width="120" />
 </p>
 
 # HokiPoki CLI
