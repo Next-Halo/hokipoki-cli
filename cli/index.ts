@@ -165,14 +165,29 @@ program
     try {
       const keycloak = new KeycloakManager();
       if (!await keycloak.isAuthenticated()) {
-        console.log(chalk.yellow('❌ Not authenticated'));
+        console.log(chalk.yellow('\n❌ Not authenticated'));
         console.log(chalk.gray('Please run: hokipoki login\n'));
         process.exit(1);
       }
 
-      const email = await keycloak.getUserEmail();
+      const token = await keycloak.getToken();
+      const response = await fetch('https://api.hoki-poki.ai/api/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const profile: any = await response.json();
+      const memberSince = new Date(profile.createdAt).toLocaleDateString();
+
       console.log(chalk.green('\n✅ Authenticated'));
-      console.log(chalk.cyan(`📧 Email: ${email}\n`));
+      console.log(chalk.cyan(`📧 Email: ${profile.email}`));
+      if (profile.workspace) {
+        console.log(chalk.magenta(`🏢 Workspace: ${profile.workspace.name}`));
+      }
+      console.log(chalk.gray(`📅 Member since: ${memberSince}\n`));
     } catch (error: any) {
       console.error(chalk.red('Error:'), error.message);
       process.exit(1);
@@ -185,8 +200,8 @@ program
   .description(chalk.yellow('📊 Open the web dashboard') + '\n' +
     chalk.dim('   View your stats, credits, and transaction history'))
   .action(() => {
-    const dashboardUrl = 'http://localhost:3000';
-    console.log(chalk.cyan(`Opening dashboard at ${dashboardUrl}`));
+    const dashboardUrl = 'https://app.hoki-poki.ai/dashboard';
+    console.log(chalk.cyan(`\n🌐 Opening dashboard at ${dashboardUrl}\n`));
 
     const { exec } = require('child_process');
     const command = process.platform === 'darwin' ? 'open' :
@@ -210,10 +225,41 @@ program
       const secureProvider = new SecureProviderCLI();
       await secureProvider.status();
     } else {
-      console.log(chalk.cyan('\n📊 Account Status:'));
-      console.log(chalk.green('  Credits: ') + chalk.bold('150'));
-      console.log(chalk.magenta('  Tasks completed: ') + chalk.bold('23'));
-      console.log(chalk.blue('  Tasks requested: ') + chalk.bold('15') + '\n');
+      try {
+        const keycloak = new KeycloakManager();
+        if (!await keycloak.isAuthenticated()) {
+          console.log(chalk.yellow('\n❌ Not authenticated'));
+          console.log(chalk.gray('Please run: hokipoki login\n'));
+          process.exit(1);
+        }
+
+        const token = await keycloak.getToken();
+        const response = await fetch('https://api.hoki-poki.ai/api/profile', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+
+        const profile: any = await response.json();
+        const requestedCount = profile.pagination?.requestedTasks?.total || 0;
+        const providedCount = profile.pagination?.providedTasks?.total || 0;
+
+        console.log(chalk.cyan('\n📊 Account Status\n'));
+        console.log(chalk.white(`  📧 Email: ${chalk.bold(profile.email)}`));
+        if (profile.workspace) {
+          console.log(chalk.white(`  🏢 Workspace: ${chalk.bold(profile.workspace.name)}`));
+        }
+        console.log('');
+        console.log(chalk.green(`  📤 Tasks Requested: ${chalk.bold(requestedCount)}`));
+        console.log(chalk.magenta(`  📥 Tasks Provided: ${chalk.bold(providedCount)}`));
+        console.log('');
+        console.log(chalk.gray('  💳 Credits: coming soon\n'));
+      } catch (error: any) {
+        console.error(chalk.red('Error:'), error.message);
+        process.exit(1);
+      }
     }
   });
 
