@@ -1,6 +1,6 @@
 {
   "name": "@next-halo/hokipoki-cli",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "HokiPoki CLI - P2P marketplace for AI CLI tools",
   "main": "dist/cli/index.js",
   "bin": {
