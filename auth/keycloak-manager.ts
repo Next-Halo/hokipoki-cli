@@ -8,7 +8,6 @@ import http from 'http';
 import { URL } from 'url';
 import chalk from 'chalk';
 import jwt from 'jsonwebtoken';
-import axios from 'axios';
 
 // Configuration (can be overridden via environment variables)
 const KEYCLOAK_ISSUER = process.env.HOKIPOKI_KEYCLOAK_ISSUER
@@ -120,12 +119,12 @@ export class KeycloakManager {
    */
   private async checkEmailVerified(email: string): Promise<boolean> {
     try {
-      const response = await axios.get(
-        `${this.backendUrl}/api/auth/check-verified`,
-        { params: { email } }
+      const response = await fetch(
+        `${this.backendUrl}/api/auth/check-verified?email=${encodeURIComponent(email)}`
       );
-
-      return response.data?.verified === true;
+      if (!response.ok) return true;
+      const data = await response.json() as { verified?: boolean };
+      return data?.verified === true;
     } catch {
       // If check fails, assume verified (network error, etc.)
       return true;
@@ -491,13 +490,23 @@ export class KeycloakManager {
     params.set('code_verifier', codeVerifier);
 
     try {
-      const response = await axios.post(tokenUrl, params.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
-      const data = response.data;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Token exchange failed: ${errorText}`);
+      }
+
+      const data = await response.json() as {
+        access_token: string;
+        refresh_token: string;
+        id_token?: string;
+        expires_in: number;
+      };
 
       const token: KeycloakToken = {
         access_token: data.access_token,
@@ -508,8 +517,7 @@ export class KeycloakManager {
 
       await this.storeToken(token);
     } catch (error: any) {
-      const errorMsg = error.response?.data || error.message;
-      throw new Error(`Token exchange failed: ${errorMsg}`);
+      throw new Error(`Token exchange failed: ${error.message}`);
     }
   }
 
@@ -604,13 +612,22 @@ export class KeycloakManager {
     params.set('refresh_token', refreshToken);
 
     try {
-      const response = await axios.post(tokenUrl, params.toString(), {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
       });
 
-      const data = response.data;
+      if (!response.ok) {
+        throw new Error('Token refresh failed. Please login again: hokipoki login');
+      }
+
+      const data = await response.json() as {
+        access_token: string;
+        refresh_token: string;
+        id_token?: string;
+        expires_in: number;
+      };
 
       const token: KeycloakToken = {
         access_token: data.access_token,
@@ -662,7 +679,7 @@ export class KeycloakManager {
         params.set('id_token_hint', token.id_token);
 
         try {
-          await axios.get(`${logoutUrl}?${params.toString()}`);
+          await fetch(`${logoutUrl}?${params.toString()}`);
         } catch (error) {
           // Continue with local logout even if remote logout fails
           console.log(chalk.yellow('⚠️  Could not reach Keycloak server, logging out locally\n'));
@@ -728,14 +745,25 @@ export class KeycloakManager {
     const accessToken = await this.getToken();
 
     try {
-      const response = await axios.get(`${this.backendUrl}/api/tunnel/token`, {
+      const response = await fetch(`${this.backendUrl}/api/tunnel/token`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       });
 
-      const data = response.data;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get tunnel config: ${errorText}`);
+      }
+
+      const data = await response.json() as {
+        token: string;
+        serverAddr: string;
+        serverPort: number;
+        tunnelDomain: string;
+        httpPort: number;
+      };
 
       const config: TunnelConfig = {
         token: data.token,
@@ -751,8 +779,7 @@ export class KeycloakManager {
 
       return config;
     } catch (error: any) {
-      const errorMsg = error.response?.data || error.message;
-      throw new Error(`Failed to get tunnel config: ${errorMsg}`);
+      throw new Error(`Failed to get tunnel config: ${error.message}`);
     }
   }
 

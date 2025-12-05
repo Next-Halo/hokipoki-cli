@@ -9,7 +9,6 @@ import { execSync } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { glob } from 'glob';
-import axios from 'axios';
 import { MCPMessage } from '../types';
 import { P2PConnectionWS as P2PConnection } from '../p2p/connection-ws';
 import { EphemeralGitServer } from '../git-server/ephemeral-git';
@@ -190,14 +189,19 @@ export class RequesterCommand {
     // Fetch user's workspaces from profile
     try {
       const token = await this.keycloakManager.getToken();
-      const response = await axios.get(`${this.backendUrl}/profile`, {
+      const response = await fetch(`${this.backendUrl}/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      if (!response.ok) throw new Error('Failed to fetch profile');
+      const data = await response.json() as {
+        workspaces?: Array<{ id: string; name: string; isPersonal?: boolean }>;
+        id: string;
+      };
 
-      const workspaces = response.data.workspaces || [];
-      this.userId = response.data.id;
+      const workspaces = data.workspaces || [];
+      this.userId = data.id;
 
       // Resolve workspace based on --workspace flag
       if (this.options.workspace) {
@@ -244,14 +248,27 @@ export class RequesterCommand {
     // Check for active tasks before publishing (Layer 2: CLI enforcement)
     try {
       const token = await this.keycloakManager.getToken();
-      const activeTasksResponse = await axios.get(`${this.backendUrl}/tasks/active`, {
+      const activeTasksResponse = await fetch(`${this.backendUrl}/tasks/active`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      if (!activeTasksResponse.ok) throw new Error('Failed to check active tasks');
+      const activeTasksData = await activeTasksResponse.json() as {
+        hasActiveTasks: boolean;
+        activeTasks: Array<{
+          id: string;
+          tool: string;
+          model?: string;
+          status: string;
+          description: string;
+          createdAt: string;
+          provider?: string;
+        }>;
+      };
 
-      if (activeTasksResponse.data.hasActiveTasks) {
-        const activeTask = activeTasksResponse.data.activeTasks[0];
+      if (activeTasksData.hasActiveTasks) {
+        const activeTask = activeTasksData.activeTasks[0];
         if (this.jsonMode) {
           console.log(JSON.stringify({
             error: 'You already have an active task',
@@ -1289,9 +1306,13 @@ export class RequesterCommand {
         return;
       }
 
-      await axios.post(
-        `${this.backendUrl}/tasks`,
-        {
+      await fetch(`${this.backendUrl}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           id: taskData.id,
           tool: taskData.tool,
           model: taskData.model,
@@ -1301,13 +1322,8 @@ export class RequesterCommand {
           createdAt: new Date().toISOString(),
           completedAt: taskData.completedAt?.toISOString(),
           providerId: taskData.providerId
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+        })
+      });
     } catch (error) {
       // Silent fail - don't block the main workflow if backend logging fails
       console.error(chalk.dim('Note: Task logging to dashboard failed'));
@@ -1327,16 +1343,18 @@ export class RequesterCommand {
       try {
         const token = await this.keycloakManager.getToken();
         if (token) {
-          await axios.post(
-            `${this.backendUrl}/tasks/${this.taskId}/cancel`,
-            {},
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              },
-              timeout: 3000 // Quick timeout for interrupt
-            }
-          );
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          await fetch(`${this.backendUrl}/tasks/${this.taskId}/cancel`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({}),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
           if (!this.jsonMode) {
             console.log(chalk.gray('Task cancelled in database'));
           }

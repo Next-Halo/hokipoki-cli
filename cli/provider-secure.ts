@@ -8,7 +8,6 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import { OAuthManager } from '../auth/oauth-manager';
-import axios from 'axios';
 import { KeycloakManager } from '../auth/keycloak-manager';
 
 // Get the CLI package root directory (works regardless of where hokipoki is run from)
@@ -513,9 +512,13 @@ export class SecureProviderCLI {
         return;
       }
 
-      await axios.post(
-        `${this.backendUrl}/tasks`,
-        {
+      await fetch(`${this.backendUrl}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           id: taskData.id,
           tool: taskData.tool,
           model: taskData.model,
@@ -526,13 +529,8 @@ export class SecureProviderCLI {
           completedAt: taskData.completedAt?.toISOString(),
           providerId: taskData.providerId,
           summary: taskData.summary
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+        })
+      });
     } catch (error) {
       // Silent fail - don't block the main workflow if backend logging fails
       console.error(chalk.dim('Note: Task logging to dashboard failed'));

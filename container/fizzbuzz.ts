@@ -10,7 +10,7 @@
  */
 
 type Rule = { divisor: number; word: string };
-
+console.log("Loaded fizzbuzz.ts");
 /**
  * Generate FizzBuzz lines for numbers in [start, end] (inclusive).
  * Default rules: 3 => "Fizz", 5 => "Buzz".

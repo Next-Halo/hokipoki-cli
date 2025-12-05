@@ -5,7 +5,6 @@ import WebSocket from 'ws';
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
-import axios from 'axios';
 import { MCPMessage, Task } from '../types';
 import { P2PConnectionWS as P2PConnection } from '../p2p/connection-ws';
 import { SecureProviderCLI } from './provider-secure';
@@ -69,17 +68,23 @@ export class ProviderCommand {
     try {
       const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
       const token = await this.keycloakManager.getToken();
-      const response = await axios.get(`${backendUrl}/api/profile`, {
+      const response = await fetch(`${backendUrl}/api/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      this.workspaceId = response.data.workspaceId || undefined;
-      this.userId = response.data.id;
+      if (!response.ok) throw new Error('Failed to fetch profile');
+      const data = await response.json() as {
+        workspaceId?: string;
+        id: string;
+        workspaces?: Array<{ id: string }>;
+      };
+      this.workspaceId = data.workspaceId || undefined;
+      this.userId = data.id;
 
       // Extract ALL workspace IDs from memberships
-      if (response.data.workspaces && Array.isArray(response.data.workspaces)) {
-        this.workspaceIds = response.data.workspaces.map((ws: any) => ws.id);
+      if (data.workspaces && Array.isArray(data.workspaces)) {
+        this.workspaceIds = data.workspaces.map((ws) => ws.id);
         console.log(chalk.gray(`Member of ${this.workspaceIds.length} workspace(s)\n`));
       } else if (this.workspaceId) {
         // Fallback to active workspace only
@@ -415,16 +420,15 @@ export class ProviderCommand {
       const token = await this.keycloakManager.getToken();
       const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
 
-      await axios.put(
-        `${backendUrl}/api/tasks/${taskId}/provider`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await fetch(`${backendUrl}/api/tasks/${taskId}/provider`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+      if (!response.ok) throw new Error('Failed to update task');
 
       console.log(chalk.gray(`[DEBUG] Task ${taskId} updated with provider ID`));
     } catch (error) {
@@ -445,16 +449,15 @@ export class ProviderCommand {
       const token = await this.keycloakManager.getToken();
       const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
 
-      await axios.post(
-        `${backendUrl}/api/tasks/${taskId}/cancel`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const response = await fetch(`${backendUrl}/api/tasks/${taskId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+      if (!response.ok) throw new Error('Failed to cancel task');
 
       console.log(chalk.gray(`[DEBUG] Task ${taskId} marked as cancelled in database`));
     } catch (error) {
