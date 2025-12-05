@@ -101,8 +101,9 @@ export class EphemeralGitServer {
     await fs.rm(workDir, { recursive: true, force: true });
     await fs.mkdir(workDir, { recursive: true });
 
-    // Initialize work directory as a git repo (instead of cloning empty bare repo)
-    execSync(`git init ${workDir}`, { stdio: 'ignore' });
+    // Initialize work directory as a git repo with 'main' as default branch
+    // This ensures consistency regardless of user's git config (some use 'master', some 'main')
+    execSync(`git init -b main ${workDir}`, { stdio: 'ignore' });
     execSync(`cd ${workDir} && git remote add origin ${this.tempRepoPath}`, { stdio: 'ignore' });
 
     // Configure git user for commits (required for git commit to work)
