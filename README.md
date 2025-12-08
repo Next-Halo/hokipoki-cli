@@ -120,11 +120,72 @@ hokipoki dashboard   # Open web dashboard
 
 ## How It Works
 
-1. **Request**: You submit a task with context (files/directories)
-2. **Match**: HokiPoki finds an available provider with the requested tool
-3. **Execute**: The task runs securely on the provider's machine
-4. **Return**: Results (patches, responses) are sent back to you
-5. **Apply**: Patches are automatically applied to your codebase
+### Use Case 1: AI-to-AI (Your AI calls another AI)
+
+When Claude Code gets stuck, have it call Gemini or Codex for help:
+
+```mermaid
+sequenceDiagram
+    participant C as Claude Code
+    participant H as HokiPoki
+    participant R as Relay
+    participant P as Provider
+    participant G as Gemini CLI
+
+    C->>H: hokipoki request --tool gemini
+    H->>R: Publish task
+    R->>P: Match & route
+    P->>G: Execute in sandbox
+    G-->>P: Result
+    P-->>H: Return patch
+    H-->>C: Auto-apply
+```
+
+### Use Case 2: Human Terminal (You request directly)
+
+Run HokiPoki from your terminal to get help from any AI tool:
+
+```mermaid
+sequenceDiagram
+    participant U as You (Terminal)
+    participant H as HokiPoki
+    participant R as Relay
+    participant P as Provider
+    participant AI as Claude CLI
+
+    U->>H: hokipoki request --tool claude --interactive
+    H->>R: Authenticate & publish
+    R->>P: Route to provider
+    P->>AI: Execute securely
+    AI-->>P: Code changes
+    P-->>H: Return patch
+    H->>U: Show diff
+    U->>H: Apply
+```
+
+### Use Case 3: Workspace (Share one subscription with your team)
+
+One person with Claude Max can serve their entire team:
+
+```mermaid
+flowchart TB
+    subgraph workspace[Engineering Workspace]
+        alice[Alice - has Claude]
+        bob[Bob - no subscription]
+        carol[Carol - no subscription]
+    end
+
+    relay[Relay Server]
+
+    bob -->|request| relay
+    carol -->|request| relay
+    relay -->|route| alice
+    alice -->|execute & return| relay
+    relay -->|patch| bob
+    relay -->|patch| carol
+```
+
+**Result**: Bob and Carol use Alice's Claude subscription. Alice earns credits, team shares one subscription cost.
 
 ## Security
 
@@ -145,12 +206,13 @@ hokipoki <command> --help    # Command-specific help
 
 ## Tips & Tricks
 
-### For AI CLIs (Claude Code, Codex, Gemini)
+### Interactive vs AI Mode
 
-When using HokiPoki from within an AI CLI:
-
-- **Don't use `--interactive`** - causes hang/timeout. AI mode is auto-detected (non-TTY = AI mode)
-- **Patches auto-apply** when in AI mode, results returned in parseable format
+- **Human usage (terminal)**: Use `--interactive` flag when running HokiPoki directly from your terminal
+  ```bash
+  hokipoki request --tool claude --task "Fix bug" --files src/main.ts --interactive
+  ```
+- **AI CLI usage**: Don't use `--interactive` - causes hang/timeout. AI mode is auto-detected (non-TTY = AI mode). Patches auto-apply and results are returned in parseable format.
 
 ### Prerequisites for Auto-Apply
 
