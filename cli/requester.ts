@@ -77,6 +77,18 @@ export class RequesterCommand {
   }
 
   /**
+   * Check if current directory is inside a git repository
+   */
+  private isGitRepo(): boolean {
+    try {
+      execSync('git rev-parse --git-dir', { stdio: 'pipe' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Parse tool:model syntax (e.g., "claude:sonnet" -> { tool: "claude", model: "sonnet" })
    */
   private parseToolAndModel(toolString: string): { tool: string, model?: string } {
@@ -988,11 +1000,15 @@ export class RequesterCommand {
 
         // Auto-apply patch
         try {
-          // Check if patch can be applied cleanly
-          execSync(`git apply --check "${patchFilePath}"`, { stdio: 'pipe' });
-
-          // Apply the patch
-          execSync(`git apply "${patchFilePath}"`, { stdio: 'inherit' });
+          if (this.isGitRepo()) {
+            // In a git repo - use git apply
+            execSync(`git apply --check "${patchFilePath}"`, { stdio: 'pipe' });
+            execSync(`git apply "${patchFilePath}"`, { stdio: 'inherit' });
+          } else {
+            // Not in a git repo - use patch command as fallback
+            // -p1 strips the first path component (a/ or b/) from git diff format
+            execSync(`patch -p1 < "${patchFilePath}"`, { stdio: 'inherit', shell: '/bin/sh' });
+          }
 
           console.log(chalk.green('\n✅ Changes applied successfully'));
           console.log(chalk.gray(`Patch file: patches/${patchFileName}`));
@@ -1012,7 +1028,11 @@ export class RequesterCommand {
           console.error(chalk.red('\n❌ Failed to apply patch automatically'));
           console.error(chalk.yellow('The patch may have conflicts with your current code.'));
           console.log(chalk.gray(`\nPatch saved at: patches/${patchFileName}`));
-          console.log(chalk.gray('Review and apply it manually with:'), chalk.cyan(`git apply patches/${patchFileName}`));
+          if (this.isGitRepo()) {
+            console.log(chalk.gray('Review and apply it manually with:'), chalk.cyan(`git apply patches/${patchFileName}`));
+          } else {
+            console.log(chalk.gray('Review and apply it manually with:'), chalk.cyan(`patch -p1 < patches/${patchFileName}`));
+          }
 
           // Still confirm with provider even if apply failed
           this.p2pConnection?.sendP2P({

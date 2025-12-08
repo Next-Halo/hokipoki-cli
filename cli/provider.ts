@@ -327,7 +327,7 @@ export class ProviderCommand {
         type: 'confirm',
         name: 'accept',
         message: 'Accept this task?',
-        default: true
+        default: false  // Require explicit 'y' to prevent auto-accept from buffered stdin
       }
     ]);
 
