@@ -94,6 +94,10 @@ program
   .command('request')
   .description(chalk.green('🚀 Request help from an AI tool') + '\n' +
     chalk.dim('   Submit a task to the network and get solutions from available providers') + '\n\n' +
+    chalk.yellow('   Prerequisites for auto-apply:') + '\n' +
+    chalk.dim('   • Directory must be a git repository (run: git init)') + '\n' +
+    chalk.dim('   • Target files must be committed (git add + git commit)') + '\n' +
+    chalk.dim('   • Without these, patches are saved but NOT auto-applied') + '\n\n' +
     chalk.yellow('   For AI CLIs (Claude Code, Codex, Gemini):') + '\n' +
     chalk.red('   ⚠️  DO NOT use --interactive (causes hang/timeout)') + '\n' +
     chalk.dim('   AI mode auto-detected (non-TTY = AI mode)') + '\n' +
