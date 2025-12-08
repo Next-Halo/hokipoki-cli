@@ -95,7 +95,7 @@ hokipoki request --tool gemini --task "Review for security issues" --all
 
 ### Provide Your Tools (Provider)
 
-Share your AI subscriptions and earn credits:
+Share your AI subscriptions with your team or the network:
 
 ```bash
 # Register as a provider
@@ -108,7 +108,7 @@ hokipoki listen --tools claude codex
 ### Account & Status
 
 ```bash
-hokipoki status      # Check credits and account info
+hokipoki status      # Check account info
 hokipoki dashboard   # Open web dashboard
 ```
 
@@ -180,7 +180,7 @@ sequenceDiagram
     R-->>B: Deliver patch
 ```
 
-**Result**: Bob uses Alice's Claude subscription. Team shares one subscription cost.
+**Result**: Bob uses Alice's Claude subscription. Team shares one subscription.
 
 ## Security
 
