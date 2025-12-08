@@ -168,24 +168,19 @@ sequenceDiagram
 One person with Claude Max can serve their entire team:
 
 ```mermaid
-flowchart TB
-    subgraph workspace[Engineering Workspace]
-        alice[Alice - has Claude]
-        bob[Bob - no subscription]
-        carol[Carol - no subscription]
-    end
+sequenceDiagram
+    participant B as Bob (no sub)
+    participant R as Relay
+    participant A as Alice (has Claude)
 
-    relay[Relay Server]
-
-    bob -->|request| relay
-    carol -->|request| relay
-    relay -->|route| alice
-    alice -->|execute & return| relay
-    relay -->|patch| bob
-    relay -->|patch| carol
+    B->>R: request --tool claude
+    R->>A: Route to Alice
+    A->>A: Execute with Claude
+    A-->>R: Return patch
+    R-->>B: Deliver patch
 ```
 
-**Result**: Bob and Carol use Alice's Claude subscription. Alice earns credits, team shares one subscription cost.
+**Result**: Bob uses Alice's Claude subscription. Team shares one subscription cost.
 
 ## Security
 

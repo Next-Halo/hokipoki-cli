@@ -763,7 +763,8 @@ export class RequesterCommand {
             }));
           } else {
             console.log(chalk.green('\n✅ Review received from provider'));
-            console.log(chalk.green('💰 2.5 credits transferred to provider'));
+            // TODO: Credits system coming soon
+            // console.log(chalk.green('💰 2.5 credits transferred to provider'));
             console.log(chalk.gray('Waiting for provider acknowledgment...'));
           }
 
@@ -1026,7 +1027,8 @@ export class RequesterCommand {
             payload: { accepted: true, credits: 2.5, taskId: this.taskId }
           });
 
-          console.log(chalk.green('💰 2.5 credits transferred to provider'));
+          // TODO: Credits system coming soon
+          // console.log(chalk.green('💰 2.5 credits transferred to provider'));
 
         } catch (error: any) {
           console.error(chalk.red('\n❌ Failed to apply patch automatically'));
@@ -1050,7 +1052,8 @@ export class RequesterCommand {
             type: 'confirmation',
             payload: { accepted: true, credits: 2.5, taskId: this.taskId }
           });
-          console.log(chalk.green('💰 2.5 credits transferred to provider'));
+          // TODO: Credits system coming soon
+          // console.log(chalk.green('💰 2.5 credits transferred to provider'));
         }
 
         this.send({ type: 'task_complete', taskId: this.taskId });
@@ -1112,7 +1115,8 @@ export class RequesterCommand {
             }
           });
 
-          console.log(chalk.green('💰 2.5 credits transferred to provider'));
+          // TODO: Credits system coming soon
+          // console.log(chalk.green('💰 2.5 credits transferred to provider'));
 
         } catch (error: any) {
           console.error(chalk.red('\n❌ Failed to apply patch'));
@@ -1131,7 +1135,8 @@ export class RequesterCommand {
               taskId: this.taskId
             }
           });
-          console.log(chalk.green('💰 2.5 credits transferred to provider'));
+          // TODO: Credits system coming soon
+          // console.log(chalk.green('💰 2.5 credits transferred to provider'));
         }
 
       } else if (action === 'save') {
@@ -1148,7 +1153,8 @@ export class RequesterCommand {
             taskId: this.taskId
           }
         });
-        console.log(chalk.green('💰 2.5 credits transferred to provider'));
+        // TODO: Credits system coming soon
+        // console.log(chalk.green('💰 2.5 credits transferred to provider'));
 
       } else {
         console.log(chalk.yellow('\n❌ Changes rejected'));
