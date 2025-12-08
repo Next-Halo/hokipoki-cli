@@ -113,7 +113,12 @@ program
     chalk.yellow('   Discover available models:') + '\n' +
     chalk.dim('   claude /model              # List Claude models') + '\n' +
     chalk.dim('   gemini --list-models       # List Gemini models') + '\n' +
-    chalk.dim('   codex /model               # List Codex models'))
+    chalk.dim('   codex /model               # List Codex models') + '\n\n' +
+    chalk.yellow('   Codex CLI sandbox configuration:') + '\n' +
+    chalk.dim('   Codex sandbox blocks .git/ writes by default.') + '\n' +
+    chalk.dim('   To enable auto-apply, add to ~/.codex/config.toml:') + '\n' +
+    chalk.dim('     [sandbox_workspace_write]') + '\n' +
+    chalk.dim('     writable_roots = [".git"]'))
   .option('--tool <tool>', 'AI tool with optional model (e.g., claude:sonnet-4, gemini:gemini-2.5-flash)')
   .requiredOption('--task <task>', 'Task description (what you need help with)')
   .option('--files <files...>', 'Specific files to include (e.g., src/main.ts)')

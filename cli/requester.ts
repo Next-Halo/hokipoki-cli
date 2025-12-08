@@ -1030,7 +1030,18 @@ export class RequesterCommand {
 
         } catch (error: any) {
           console.error(chalk.red('\n❌ Failed to apply patch automatically'));
-          console.error(chalk.yellow('The patch may have conflicts with your current code.'));
+
+          // Check for sandbox permission error (common with Codex CLI)
+          const errorMessage = error.message || error.stderr?.toString() || '';
+          if (errorMessage.includes('Operation not permitted') || errorMessage.includes('index.lock')) {
+            console.error(chalk.yellow('Sandbox permission error detected (common with Codex CLI).'));
+            console.error(chalk.cyan('To enable auto-apply, add to ~/.codex/config.toml:'));
+            console.error(chalk.gray('  [sandbox_workspace_write]'));
+            console.error(chalk.gray('  writable_roots = [".git"]'));
+          } else {
+            console.error(chalk.yellow('The patch may have conflicts with your current code.'));
+          }
+
           console.log(chalk.gray(`\nPatch saved at: patches/${patchFileName}`));
           console.log(chalk.gray('Review and apply it manually with:'), chalk.cyan(`git apply patches/${patchFileName}`));
 
