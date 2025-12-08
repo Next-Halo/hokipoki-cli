@@ -16,6 +16,9 @@ const CLI_ROOT = path.resolve(__dirname, '..');
 
 const execAsync = promisify(exec);
 
+// Supported tools whitelist - these are the only tools that can be registered
+const SUPPORTED_TOOLS = ['claude', 'codex', 'gemini'];
+
 export class SecureProviderCLI {
   private oauthManager: OAuthManager;
   private keycloakManager: KeycloakManager;
@@ -42,14 +45,22 @@ export class SecureProviderCLI {
         const [tool, _model] = toolSpec.split(':', 2);
         console.log(chalk.yellow(`⚠️  Note: Model specification detected in '${toolSpec}'`));
         console.log(chalk.gray(`   Registering base tool '${tool}' (models are specified at request time)`));
-        if (!baseTools.includes(tool)) {
-          baseTools.push(tool);
+        if (!baseTools.includes(tool.toLowerCase())) {
+          baseTools.push(tool.toLowerCase());
         }
       } else {
-        if (!baseTools.includes(toolSpec)) {
-          baseTools.push(toolSpec);
+        if (!baseTools.includes(toolSpec.toLowerCase())) {
+          baseTools.push(toolSpec.toLowerCase());
         }
       }
+    }
+
+    // Validate all tools are supported
+    const invalidTools = baseTools.filter(t => !SUPPORTED_TOOLS.includes(t));
+    if (invalidTools.length > 0) {
+      console.log(chalk.red(`\n❌ Unsupported tool(s): ${invalidTools.join(', ')}`));
+      console.log(chalk.yellow(`Supported tools: ${SUPPORTED_TOOLS.join(', ')}`));
+      process.exit(1);
     }
 
     const successfulTools: string[] = [];
@@ -66,6 +77,33 @@ export class SecureProviderCLI {
       } catch (error: any) {
         console.log(chalk.yellow(`⚠️  ${tool} authentication skipped: ${error.message || error}`));
         failedTools.push(tool);
+      }
+    }
+
+    // Register tools to backend database (only successful ones)
+    if (successfulTools.length > 0) {
+      try {
+        console.log(chalk.cyan('\n📤 Saving tools to database...'));
+        const token = await this.keycloakManager.getToken();
+
+        const response = await fetch(`${this.backendUrl}/provider/tools`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ tools: successfulTools })
+        });
+
+        if (!response.ok) {
+          const error = await response.json() as { error?: string };
+          throw new Error(error.error || 'Failed to save tools to database');
+        }
+
+        console.log(chalk.green('✅ Tools saved to database'));
+      } catch (error: any) {
+        console.log(chalk.yellow(`⚠️  Warning: Could not save tools to database: ${error.message}`));
+        console.log(chalk.gray('   Tools are saved locally. You may need to register again if database sync fails.'));
       }
     }
 

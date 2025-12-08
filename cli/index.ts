@@ -73,8 +73,10 @@ program
   .command('listen')
   .description(chalk.magenta('🎧 Start listening for task requests') + '\n' +
     chalk.dim('   Run this to accept tasks and earn credits from your idle AI tools') + '\n' +
-    chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)'))
-  .option('-t, --tools <tools...>', 'AI tools available (e.g., claude codex gemini)')
+    chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)') + '\n\n' +
+    chalk.yellow('   Note: You must first register tools with:') + '\n' +
+    chalk.dim('   hokipoki register --as-provider --tools <tools...>'))
+  .requiredOption('-t, --tools <tools...>', 'AI tools to offer this session (e.g., claude codex gemini)')
   .option('-p, --port <port>', 'P2P connection port (default: 9090)', '9090')
   .option('-s, --server <url>', 'Relay server (default: wss://relay.hoki-poki.ai)', 'wss://relay.hoki-poki.ai')
   .option('--secure', 'Use LUKS-encrypted Docker sandbox (production mode)')

@@ -9,6 +9,9 @@ import { MCPMessage, Task } from '../types';
 import { P2PConnectionWS as P2PConnection } from '../p2p/connection-ws';
 import { SecureProviderCLI } from './provider-secure';
 
+// Supported tools whitelist
+const SUPPORTED_TOOLS = ['claude', 'codex', 'gemini'];
+
 interface ProviderOptions {
   tools?: string[];
   port: string;
@@ -100,9 +103,64 @@ export class ProviderCommand {
 
     console.log(chalk.bold.cyan('🌐 HokiPoki Provider Mode\n'));
 
-    // If no tools specified via CLI, detect registered tools
+    // --tools flag is REQUIRED
     if (this.availableTools.length === 0) {
-      this.availableTools = await this.detectAvailableTools();
+      console.log(chalk.red('\n❌ No tools specified!'));
+      console.log(chalk.yellow('The --tools flag is required.'));
+      console.log(chalk.gray('Example: hokipoki listen --tools gemini claude\n'));
+      process.exit(1);
+    }
+
+    // Normalize tool names to lowercase
+    this.availableTools = this.availableTools.map(t => t.toLowerCase());
+
+    // Validate all requested tools are in SUPPORTED_TOOLS
+    const unsupportedTools = this.availableTools.filter(t => !SUPPORTED_TOOLS.includes(t));
+    if (unsupportedTools.length > 0) {
+      console.log(chalk.red(`\n❌ Unsupported tool(s): ${unsupportedTools.join(', ')}`));
+      console.log(chalk.yellow(`Supported tools: ${SUPPORTED_TOOLS.join(', ')}`));
+      process.exit(1);
+    }
+
+    // Fetch user's registered tools from database and validate
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'https://api.hoki-poki.ai';
+      const token = await this.keycloakManager.getToken();
+
+      const response = await fetch(`${backendUrl}/api/provider/tools`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch registered tools');
+
+      const data = await response.json() as { tools: string[] };
+      const registeredTools = data.tools || [];
+
+      // Check that all requested tools are registered
+      const unregisteredTools = this.availableTools.filter(t => !registeredTools.includes(t));
+      if (unregisteredTools.length > 0) {
+        console.log(chalk.red(`\n❌ Tool(s) not registered: ${unregisteredTools.join(', ')}`));
+        console.log(chalk.yellow('Please register your tools first:'));
+        console.log(chalk.cyan(`  hokipoki register --as-provider --tools ${unregisteredTools.join(' ')}\n`));
+        process.exit(1);
+      }
+
+      console.log(chalk.green(`✓ Validated ${this.availableTools.length} tool(s) against database`));
+    } catch (error) {
+      console.log(chalk.yellow('⚠️  Warning: Could not validate tools against database'));
+      console.log(chalk.gray('   Continuing with local token validation only...'));
+    }
+
+    // Also validate local OAuth tokens exist
+    const locallyValidatedTools = await this.detectAvailableTools();
+    const missingLocalTokens = this.availableTools.filter(t => !locallyValidatedTools.includes(t));
+    if (missingLocalTokens.length > 0) {
+      console.log(chalk.red(`\n❌ Missing local tokens for: ${missingLocalTokens.join(', ')}`));
+      console.log(chalk.yellow('Please refresh your local tokens:'));
+      console.log(chalk.cyan(`  hokipoki register --as-provider --tools ${missingLocalTokens.join(' ')}\n`));
+      process.exit(1);
     }
 
     console.log(chalk.gray('Available tools:'), this.availableTools.join(', '));
@@ -169,13 +227,15 @@ export class ProviderCommand {
             this.peerId = message.peerId;
 
             // Now that we're authenticated, register as provider
+            const token = await this.keycloakManager.getToken();
             this.send({
               type: 'register_provider',
               payload: {
                 tools: this.availableTools,
                 workspaceIds: this.workspaceIds,  // Send array of all workspace IDs
                 workspaceId: this.workspaceId,    // Keep for backward compatibility
-                userId: this.userId
+                userId: this.userId,
+                token: token  // Include token for relay server to verify with backend
               }
             });
 
@@ -338,6 +398,12 @@ export class ProviderCommand {
         if (data.payload.accepted) {
           console.log(chalk.green(`\n✅ Task completed!`));
           console.log(chalk.gray('Session data erased. Ready for next task.'));
+
+          // Send acknowledgment back to requester so they can safely disconnect
+          this.p2pConnection?.sendP2P({
+            type: 'confirmation_ack',
+            payload: { taskId: data.payload.taskId || taskId }
+          });
         } else {
           console.log(chalk.yellow('\n❌ Solution rejected by requester.'));
         }

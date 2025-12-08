@@ -647,6 +647,15 @@ export class RequesterCommand {
         process.exit(1);
         break;
 
+      case 'confirmation_ack':
+        // Provider acknowledged our confirmation - safe to disconnect now
+        if (!this.jsonMode) {
+          console.log(chalk.gray('Provider acknowledged completion'));
+        }
+        await this.cleanup();
+        process.exit(0);
+        break;
+
       case 'error':
         if (this.jsonMode) {
           console.log(JSON.stringify({ success: false, error: data.payload.error }));
@@ -711,11 +720,25 @@ export class RequesterCommand {
 
         // If only review output (no code changes), auto-accept
         if (hasReviewOutput && !hasCodeChanges) {
+          // Log task completion to backend (before sending confirmation)
+          if (this.taskId) {
+            await this.logTask({
+              id: this.taskId,
+              tool: this.toolName,
+              model: this.modelName,
+              description: this.options.task,
+              status: 'completed',
+              credits: 2.5,
+              completedAt: new Date()
+            });
+          }
+
           this.p2pConnection?.sendP2P({
             type: 'confirmation',
             payload: {
               accepted: true,
-              credits: 2.5
+              credits: 2.5,
+              taskId: this.taskId
             }
           });
 
@@ -729,48 +752,15 @@ export class RequesterCommand {
           } else {
             console.log(chalk.green('\n✅ Review received from provider'));
             console.log(chalk.green('💰 2.5 credits transferred to provider'));
-            console.log(chalk.gray('Session complete. Provider will clean up resources.'));
+            console.log(chalk.gray('Waiting for provider acknowledgment...'));
           }
 
-          // Log task completion to backend
-          if (this.taskId) {
-            await this.logTask({
-              id: this.taskId,
-              tool: this.toolName,
-              model: this.modelName,
-              description: this.options.task,
-              status: 'completed',
-              credits: 2.5,
-              completedAt: new Date()
-            });
-          }
-
-          await this.cleanup();
-          process.exit(0);
+          // Don't cleanup/exit here - wait for confirmation_ack in handleP2PData
+          return;
         }
 
       } else {
-        // No changes
-        this.p2pConnection?.sendP2P({
-          type: 'confirmation',
-          payload: {
-            accepted: true,
-            credits: 2.5
-          }
-        });
-
-        if (this.jsonMode) {
-          console.log(JSON.stringify({
-            success: true,
-            hasCodeChanges: false,
-            credits: 2.5
-          }));
-        } else {
-          console.log(chalk.yellow('\nNo changes were made'));
-          console.log(chalk.green('💰 2.5 credits transferred to provider'));
-        }
-
-        // Log task completion to backend
+        // No changes - still log completion and wait for ack
         if (this.taskId) {
           await this.logTask({
             id: this.taskId,
@@ -783,8 +773,29 @@ export class RequesterCommand {
           });
         }
 
-        await this.cleanup();
-        process.exit(0);
+        this.p2pConnection?.sendP2P({
+          type: 'confirmation',
+          payload: {
+            accepted: true,
+            credits: 2.5,
+            taskId: this.taskId
+          }
+        });
+
+        if (this.jsonMode) {
+          console.log(JSON.stringify({
+            success: true,
+            hasCodeChanges: false,
+            credits: 2.5
+          }));
+        } else {
+          console.log(chalk.yellow('\nNo changes were made'));
+          console.log(chalk.green('💰 2.5 credits transferred to provider'));
+          console.log(chalk.gray('Waiting for provider acknowledgment...'));
+        }
+
+        // Don't cleanup/exit here - wait for confirmation_ack in handleP2PData
+        return;
       }
 
     } catch (error) {
@@ -799,6 +810,28 @@ export class RequesterCommand {
       await this.cleanup();
       process.exit(1);
     }
+  }
+
+  /**
+   * Wait for confirmation_ack with a timeout fallback
+   * This prevents hanging forever if provider doesn't respond
+   */
+  private async waitForAckWithTimeout(timeoutMs: number = 5000): Promise<void> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(async () => {
+        // Timeout reached - cleanup and exit anyway
+        if (!this.jsonMode) {
+          console.log(chalk.gray('Provider ack timeout - cleaning up...'));
+        }
+        await this.cleanup();
+        process.exit(0);
+      }, timeoutMs);
+
+      // The actual ack handler in handleP2PData will call cleanup and exit
+      // This timeout is just a fallback safety net
+      // Clear timeout if we're somehow still running after ack
+      // (shouldn't happen since handleP2PData calls process.exit)
+    });
   }
 
   /**
@@ -851,12 +884,26 @@ export class RequesterCommand {
       const summary = this.parseDiffSummary(payload.diff);
 
       if (this.jsonMode) {
+        // Log task completion to backend first
+        if (this.taskId) {
+          await this.logTask({
+            id: this.taskId,
+            tool: this.toolName,
+            model: this.modelName,
+            description: this.options.task,
+            status: 'completed',
+            credits: 2.5,
+            completedAt: new Date()
+          });
+        }
+
         // Auto-save in JSON mode and output results
         this.p2pConnection?.sendP2P({
           type: 'confirmation',
           payload: {
             accepted: true,
-            credits: 2.5
+            credits: 2.5,
+            taskId: this.taskId
           }
         });
 
@@ -881,21 +928,9 @@ export class RequesterCommand {
           taskId: this.taskId
         });
 
-        // Log task completion to backend
-        if (this.taskId) {
-          await this.logTask({
-            id: this.taskId,
-            tool: this.toolName,
-            model: this.modelName,
-            description: this.options.task,
-            status: 'completed',
-            credits: 2.5,
-            completedAt: new Date()
-          });
-        }
-
-        await this.cleanup();
-        process.exit(0);
+        // Wait for confirmation_ack with timeout fallback
+        await this.waitForAckWithTimeout();
+        return;
       }
 
       // Interactive mode - display and prompt
@@ -920,6 +955,19 @@ export class RequesterCommand {
         console.log(payload.diff);
         console.log('[/HOKIPOKI_PATCH]');
 
+        // Log task completion to backend first (before confirmation)
+        if (this.taskId) {
+          await this.logTask({
+            id: this.taskId,
+            tool: this.toolName,
+            model: this.modelName,
+            description: this.options.task,
+            status: 'completed',
+            credits: 2.5,
+            completedAt: new Date()
+          });
+        }
+
         // In AI mode: auto-apply patch by default (unless --no-auto-apply flag is set)
         if (this.noAutoApply) {
           // User explicitly disabled auto-apply
@@ -928,26 +976,14 @@ export class RequesterCommand {
 
           this.p2pConnection?.sendP2P({
             type: 'confirmation',
-            payload: { accepted: true, credits: 2.5 }
+            payload: { accepted: true, credits: 2.5, taskId: this.taskId }
           });
 
           this.send({ type: 'task_complete', taskId: this.taskId });
 
-          // Log task completion to backend
-          if (this.taskId) {
-            await this.logTask({
-              id: this.taskId,
-              tool: this.toolName,
-              model: this.modelName,
-              description: this.options.task,
-              status: 'completed',
-              credits: 2.5,
-              completedAt: new Date()
-            });
-          }
-
-          await this.cleanup();
-          process.exit(0);
+          // Wait for confirmation_ack with timeout fallback
+          await this.waitForAckWithTimeout();
+          return;
         }
 
         // Auto-apply patch
@@ -967,7 +1003,7 @@ export class RequesterCommand {
           // Confirm with provider
           this.p2pConnection?.sendP2P({
             type: 'confirmation',
-            payload: { accepted: true, credits: 2.5 }
+            payload: { accepted: true, credits: 2.5, taskId: this.taskId }
           });
 
           console.log(chalk.green('💰 2.5 credits transferred to provider'));
@@ -981,28 +1017,16 @@ export class RequesterCommand {
           // Still confirm with provider even if apply failed
           this.p2pConnection?.sendP2P({
             type: 'confirmation',
-            payload: { accepted: true, credits: 2.5 }
+            payload: { accepted: true, credits: 2.5, taskId: this.taskId }
           });
           console.log(chalk.green('💰 2.5 credits transferred to provider'));
         }
 
         this.send({ type: 'task_complete', taskId: this.taskId });
 
-        // Log task completion to backend
-        if (this.taskId) {
-          await this.logTask({
-            id: this.taskId,
-            tool: this.toolName,
-            model: this.modelName,
-            description: this.options.task,
-            status: 'completed',
-            credits: 2.5,
-            completedAt: new Date()
-          });
-        }
-
-        await this.cleanup();
-        process.exit(0);
+        // Wait for confirmation_ack with timeout fallback
+        await this.waitForAckWithTimeout();
+        return;
       }
 
       // Interactive mode (human manually running CLI or --interactive flag)
@@ -1019,6 +1043,19 @@ export class RequesterCommand {
           default: 'apply'
         }
       ]);
+
+      // Log task completion to backend first
+      if (this.taskId) {
+        await this.logTask({
+          id: this.taskId,
+          tool: this.toolName,
+          model: this.modelName,
+          description: this.options.task,
+          status: action === 'reject' ? 'failed' : 'completed',
+          credits: action === 'reject' ? 0 : 2.5,
+          completedAt: new Date()
+        });
+      }
 
       if (action === 'apply') {
         // Check if patch can be applied cleanly
@@ -1039,7 +1076,8 @@ export class RequesterCommand {
             type: 'confirmation',
             payload: {
               accepted: true,
-              credits: 2.5
+              credits: 2.5,
+              taskId: this.taskId
             }
           });
 
@@ -1058,7 +1096,8 @@ export class RequesterCommand {
             type: 'confirmation',
             payload: {
               accepted: true,
-              credits: 2.5
+              credits: 2.5,
+              taskId: this.taskId
             }
           });
           console.log(chalk.green('💰 2.5 credits transferred to provider'));
@@ -1074,7 +1113,8 @@ export class RequesterCommand {
           type: 'confirmation',
           payload: {
             accepted: true,
-            credits: 2.5
+            credits: 2.5,
+            taskId: this.taskId
           }
         });
         console.log(chalk.green('💰 2.5 credits transferred to provider'));
@@ -1088,7 +1128,8 @@ export class RequesterCommand {
         this.p2pConnection?.sendP2P({
           type: 'confirmation',
           payload: {
-            accepted: false
+            accepted: false,
+            taskId: this.taskId
           }
         });
       }
@@ -1099,26 +1140,10 @@ export class RequesterCommand {
         taskId: this.taskId
       });
 
-      // Log task completion to backend
-      if (this.taskId) {
-        await this.logTask({
-          id: this.taskId,
-          tool: this.toolName,
-          model: this.modelName,
-          description: this.options.task,
-          status: action === 'reject' ? 'failed' : 'completed',
-          credits: action === 'reject' ? 0 : 2.5,
-          completedAt: new Date()
-        });
-      }
+      console.log(chalk.gray('Waiting for provider acknowledgment...'));
 
-      // Cleanup
-      await this.cleanup();
-
-      setTimeout(() => {
-        console.log(chalk.bold.green('\n✨ Task completed!'));
-        process.exit(0);
-      }, 1000);
+      // Wait for confirmation_ack with timeout fallback
+      await this.waitForAckWithTimeout();
 
     } catch (error) {
       console.error(chalk.red('Error reviewing solution:'), error);
