@@ -94,6 +94,10 @@ program
   .command('request')
   .description(chalk.green('🚀 Request help from an AI tool') + '\n' +
     chalk.dim('   Submit a task to the network and get solutions from available providers') + '\n\n' +
+    chalk.yellow('   For AI CLIs (Claude Code, Codex, Gemini):') + '\n' +
+    chalk.red('   ⚠️  DO NOT use --interactive (causes hang/timeout)') + '\n' +
+    chalk.dim('   AI mode auto-detected (non-TTY = AI mode)') + '\n' +
+    chalk.dim('   Patches auto-applied, results in parseable format') + '\n\n' +
     chalk.yellow('   Model selection syntax:') + '\n' +
     chalk.dim('   --tool <tool>:<model>      # Specify tool and model') + '\n' +
     chalk.dim('   --tool <tool>              # Use default model') + '\n\n' +
@@ -114,8 +118,8 @@ program
   .option('--workspace <name>', 'Workspace to publish task to (default: personal workspace)')
   .option('-s, --server <url>', 'Relay server URL (default: wss://relay.hoki-poki.ai)', 'wss://relay.hoki-poki.ai')
   .option('--git-host <host>', 'Git server host/IP (auto-detected if not specified)')
-  .option('--json', 'Output as JSON (for programmatic use)')
-  .option('--interactive', 'Force interactive prompts (even in AI CLI mode)')
+  .option('--json', 'Output as JSON (for AI CLI parsing)')
+  .option('--interactive', 'Force interactive prompts (HUMAN USE ONLY - breaks AI CLIs)')
   .option('--no-auto-apply', 'Don\'t auto-apply patches (just save them)')
   .action(async (options) => {
     const requester = new RequesterCommand(options);
