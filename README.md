@@ -143,6 +143,32 @@ hokipoki --help              # General help
 hokipoki <command> --help    # Command-specific help
 ```
 
+## Tips & Tricks
+
+### For AI CLIs (Claude Code, Codex, Gemini)
+
+When using HokiPoki from within an AI CLI:
+
+- **Don't use `--interactive`** - causes hang/timeout. AI mode is auto-detected (non-TTY = AI mode)
+- **Patches auto-apply** when in AI mode, results returned in parseable format
+
+### Prerequisites for Auto-Apply
+
+For patches to auto-apply successfully:
+
+1. **Directory must be a git repository** - run `git init` if needed
+2. **Target files must be committed** - run `git add . && git commit -m "initial"` first
+3. Without these, patches are saved but NOT auto-applied
+
+### Codex CLI Sandbox Configuration
+
+Codex sandbox blocks `.git/` writes by default, preventing auto-apply. To fix, add to `~/.codex/config.toml`:
+
+```toml
+[sandbox_workspace_write]
+writable_roots = [".git"]
+```
+
 ## Links
 
 - Website: [hoki-poki.ai](https://hoki-poki.ai)
