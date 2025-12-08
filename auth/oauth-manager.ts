@@ -200,23 +200,21 @@ export class OAuthManager {
 
       // Parse expiry date
       let expiryDate = new Date(Date.now() + 30 * 24 * 3600 * 1000); // Default 30 days
-      let isExpired = false;
 
       if (authData.expiry_date) {
         const tokenExpiry = new Date(authData.expiry_date);
 
         // Check if source tokens are already expired
         if (tokenExpiry < new Date()) {
-          isExpired = true;
-          console.log(chalk.yellow('\n⚠️  Gemini OAuth credentials in ~/.gemini/oauth_creds.json are expired!'));
+          console.log(chalk.red('\n❌ Gemini OAuth token has expired!'));
           console.log(chalk.yellow('   Token expired: ' + tokenExpiry.toISOString()));
           console.log(chalk.yellow('   Current time:  ' + new Date().toISOString()));
-          console.log(chalk.gray('\n   You can still register as a provider, but tokens must be refreshed before accepting tasks.'));
-          console.log(chalk.cyan('   To refresh: Re-authenticate with Gemini CLI, then restart the provider.\n'));
+          console.log(chalk.cyan('\n   To refresh: Run `gemini` in your terminal to re-authenticate, then try again.\n'));
+          throw new Error('Gemini token expired. Run `gemini` to refresh your OAuth credentials.');
         }
 
         expiryDate = tokenExpiry;
-        console.log(chalk.gray(`✓ Using token expiry from source: ${tokenExpiry.toISOString()}${isExpired ? ' (EXPIRED)' : ''}`));
+        console.log(chalk.gray(`✓ Using token expiry from source: ${tokenExpiry.toISOString()}`));
       }
 
       // Store the entire OAuth credentials object as a double-encoded JSON string
