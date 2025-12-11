@@ -77,6 +77,7 @@ hokipoki request --tool <tool> --task "<description>" [options]
 | `--files <files...>` | Specific files to include |
 | `--dir <directories...>` | Directories to include recursively |
 | `--all` | Include entire repository (respects .gitignore) |
+| `--workspace <id>` | Route request to specific workspace (team sharing) |
 | `--no-auto-apply` | Don't auto-apply patches, just save them |
 | `--json` | Output as JSON for programmatic use |
 
@@ -91,6 +92,9 @@ hokipoki request --tool codex --task "Add TypeScript types" --dir src/
 
 # Get help with the whole project
 hokipoki request --tool gemini --task "Review for security issues" --all
+
+# Route to your team's workspace (use a teammate's AI subscription)
+hokipoki request --tool claude --task "Optimize database queries" --files src/db.ts --workspace next-halo-team
 ```
 
 ### Provide Your Tools (Provider)
