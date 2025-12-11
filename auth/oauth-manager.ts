@@ -482,16 +482,39 @@ export class OAuthManager {
 
   /**
    * Get all authenticated tools
+   * For claude/codex/gemini, checks source files directly (same as getToken)
+   * This allows picking up fresh tokens after running native CLI without re-registering
    */
   async getAuthenticatedTools(): Promise<string[]> {
-    try {
-      const tokens = await this.loadTokens();
-      return tokens
-        .filter(t => new Date(t.expiresAt) > new Date())
-        .map(t => t.tool);
-    } catch {
-      return [];
+    const authenticatedTools: string[] = [];
+
+    // For claude/codex/gemini, check source files directly (same as getToken)
+    for (const tool of ['claude', 'codex', 'gemini']) {
+      try {
+        const token = await this.authenticate(tool);
+        if (token && new Date(token.expiresAt) > new Date()) {
+          authenticatedTools.push(tool);
+        }
+      } catch {
+        // Tool not available from source, skip
+      }
     }
+
+    // For other tools, check encrypted cache
+    try {
+      const cachedTokens = await this.loadTokens();
+      for (const token of cachedTokens) {
+        if (!['claude', 'codex', 'gemini'].includes(token.tool)) {
+          if (new Date(token.expiresAt) > new Date()) {
+            authenticatedTools.push(token.tool);
+          }
+        }
+      }
+    } catch {
+      // Cache not available, ignore
+    }
+
+    return authenticatedTools;
   }
 
   /**
