@@ -25,37 +25,42 @@ const OPTIONS: Record<string, string[]> = {
   help: []
 };
 
-export async function handleCompletion(): Promise<void> {
+export function handleCompletion(): void {
   const env = tabtab.parseEnv(process.env);
   if (!env.complete) return;
 
-  const { prev, lastPartial } = env;
+  const { prev, lastPartial, last } = env;
+
+  // Complete tool:model syntax (check this first - higher priority)
+  const partialToCheck = lastPartial || last || '';
+  if (partialToCheck.includes(':')) {
+    const [tool] = partialToCheck.split(':');
+    if (MODELS[tool]) {
+      tabtab.log(MODELS[tool].map(m => `${tool}:${m}`));
+      return;
+    }
+  }
 
   // Complete commands
   if (prev === 'hokipoki') {
-    return tabtab.log(COMMANDS);
+    tabtab.log(COMMANDS);
+    return;
   }
 
   // Complete options for commands
   if (COMMANDS.includes(prev)) {
-    return tabtab.log(OPTIONS[prev] || ['--help']);
+    tabtab.log(OPTIONS[prev] || ['--help']);
+    return;
   }
 
   // Complete tool names
   if (prev === '--tool' || prev === '--tools' || prev === '-t') {
-    return tabtab.log(TOOLS);
-  }
-
-  // Complete tool:model syntax
-  if (lastPartial?.includes(':')) {
-    const [tool] = lastPartial.split(':');
-    if (MODELS[tool]) {
-      return tabtab.log(MODELS[tool].map(m => `${tool}:${m}`));
-    }
+    tabtab.log(TOOLS);
+    return;
   }
 
   // Default: show commands
-  return tabtab.log(COMMANDS);
+  tabtab.log(COMMANDS);
 }
 
 export async function installCompletion(): Promise<void> {

@@ -13,8 +13,10 @@ import { version } from '../package.json';
 import { handleCompletion, installCompletion, uninstallCompletion } from './completion';
 
 // Handle tab completion (must be before any output)
-if (process.env.COMP_LINE || process.env.COMP_CWORD) {
-  handleCompletion().then(() => process.exit(0));
+// tabtab requires all three: COMP_LINE, COMP_CWORD, and COMP_POINT
+if (process.env.COMP_LINE && process.env.COMP_CWORD && process.env.COMP_POINT) {
+  handleCompletion();
+  process.exit(0);
 }
 
 const program = new Command();
