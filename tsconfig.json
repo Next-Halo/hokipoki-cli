@@ -13,8 +13,9 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
-  "include": ["cli/**/*", "auth/**/*", "container/**/*"],
+  "include": ["cli/**/*", "auth/**/*", "container/**/*", "types/**/*"],
   "exclude": ["node_modules", "dist"]
 }

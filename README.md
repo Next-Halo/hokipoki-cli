@@ -129,6 +129,24 @@ hokipoki status      # Check account info
 hokipoki dashboard   # Open web dashboard
 ```
 
+### Shell Completion
+
+Enable tab completion for commands, options, and tool names:
+
+```bash
+# One-time setup
+hokipoki completion --install
+
+# Restart your shell
+exec $SHELL
+
+# Now use tab completion!
+hokipoki req[TAB]                    → hokipoki request
+hokipoki request --tool claude:[TAB] → shows sonnet, opus
+```
+
+Supports: Bash, Zsh, Fish
+
 ## Supported AI Tools
 
 - **Claude Code CLI** (Anthropic)

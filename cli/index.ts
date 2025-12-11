@@ -10,6 +10,12 @@ import { RequesterCommand } from './requester';
 import { SecureProviderCLI } from './provider-secure';
 import { KeycloakManager } from '../auth/keycloak-manager';
 import { version } from '../package.json';
+import { handleCompletion, installCompletion, uninstallCompletion } from './completion';
+
+// Handle tab completion (must be before any output)
+if (process.env.COMP_LINE || process.env.COMP_CWORD) {
+  handleCompletion().then(() => process.exit(0));
+}
 
 const program = new Command();
 
@@ -119,20 +125,20 @@ program
     chalk.dim('   --tool <tool>:<model>      # Specify tool and model') + '\n' +
     chalk.dim('   --tool <tool>              # Use default model') + '\n\n' +
     chalk.yellow('   Examples:') + '\n' +
-    chalk.dim('   --tool claude:sonnet-4') + '\n' +
-    chalk.dim('   --tool gemini:gemini-2.5-flash') + '\n' +
-    chalk.dim('   --tool codex:gpt-5-codex-high') + '\n' +
-    chalk.dim('   --tool claude              # default model') + '\n\n' +
+    chalk.dim('   --tool claude:sonnet             # or opus') + '\n' +
+    chalk.dim('   --tool gemini:flash              # or pro, flash-lite') + '\n' +
+    chalk.dim('   --tool codex:gpt-5.1-codex-mini  # or gpt-5.1-codex-max') + '\n' +
+    chalk.dim('   --tool claude                    # uses default model') + '\n\n' +
     chalk.yellow('   Discover available models:') + '\n' +
-    chalk.dim('   claude /model              # List Claude models') + '\n' +
+    chalk.dim('   claude --model             # Show current, list with /model') + '\n' +
     chalk.dim('   gemini --list-models       # List Gemini models') + '\n' +
-    chalk.dim('   codex /model               # List Codex models') + '\n\n' +
+    chalk.dim('   codex --model              # Show/set model') + '\n\n' +
     chalk.yellow('   Codex CLI sandbox configuration:') + '\n' +
     chalk.dim('   Codex sandbox blocks .git/ writes by default.') + '\n' +
     chalk.dim('   To enable auto-apply, add to ~/.codex/config.toml:') + '\n' +
     chalk.dim('     [sandbox_workspace_write]') + '\n' +
     chalk.dim('     writable_roots = [".git"]'))
-  .option('--tool <tool>', 'AI tool with optional model (e.g., claude:sonnet-4, gemini:gemini-2.5-flash)')
+  .option('--tool <tool>', 'AI tool with optional model (e.g., claude:sonnet, gemini:flash, codex:gpt-5.1-codex)')
   .requiredOption('--task <task>', 'Task description (what you need help with)')
   .option('--files <files...>', 'Specific files to include (e.g., src/main.ts)')
   .option('--dir <directories...>', 'Directories to include recursively')
@@ -287,6 +293,25 @@ program
         console.error(chalk.red('Error:'), error.message);
         process.exit(1);
       }
+    }
+  });
+
+// Shell completion
+program
+  .command('completion')
+  .description(chalk.cyan('⌨️  Setup shell tab completion') + '\n' +
+    chalk.dim('   Enable autocomplete for commands, options, and tool names'))
+  .option('--install', 'Install completion for your shell (bash/zsh/fish)')
+  .option('--uninstall', 'Remove completion from your shell')
+  .action(async (options) => {
+    if (options.install) {
+      await installCompletion();
+    } else if (options.uninstall) {
+      await uninstallCompletion();
+    } else {
+      console.log(chalk.yellow('\nUsage:'));
+      console.log(chalk.dim('  hokipoki completion --install    # Setup completion'));
+      console.log(chalk.dim('  hokipoki completion --uninstall  # Remove completion\n'));
     }
   });
 
