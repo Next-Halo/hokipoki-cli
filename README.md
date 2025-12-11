@@ -98,12 +98,29 @@ hokipoki request --tool gemini --task "Review for security issues" --all
 Share your AI subscriptions with your team or the network:
 
 ```bash
-# Register as a provider
+# Register as a provider (one-time setup)
 hokipoki register --as-provider --tools claude codex gemini
 
 # Start listening for requests
 hokipoki listen --tools claude codex
 ```
+
+**How authentication works:**
+
+| Command | What it does |
+|---------|--------------|
+| `register --tools claude codex` | Opens browser for each tool, stores tokens, registers with backend |
+| `listen --tools gemini` | Checks gemini token only → opens browser if expired |
+
+**Token sources:**
+
+| Tool | Auth Command | Token Location |
+|------|--------------|----------------|
+| Claude | `claude setup-token` | HokiPoki cache (`~/.hokipoki/`) |
+| Codex | `codex login` | `~/.codex/auth.json` |
+| Gemini | `gemini` | `~/.gemini/oauth_creds.json` |
+
+**Auto-refresh:** When running `listen --tools <tool>`, if a token is expired or missing, HokiPoki automatically triggers the appropriate auth command (opens browser). You don't need to run `register` again unless you're adding new tools to the backend database.
 
 ### Account & Status
 

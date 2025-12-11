@@ -60,7 +60,15 @@ program
 program
   .command('register')
   .description(chalk.cyan('👤 Register as a provider') + '\n' +
-    chalk.dim('   Authenticate your AI tools (Claude, Codex, Gemini) to start earning'))
+    chalk.dim('   Authenticate your AI tools and register them with the backend') + '\n\n' +
+    chalk.yellow('   What this does:') + '\n' +
+    chalk.dim('   1. Opens browser for each tool to authenticate (if needed)') + '\n' +
+    chalk.dim('   2. Stores encrypted tokens locally (~/.hokipoki/)') + '\n' +
+    chalk.dim('   3. Registers your tools in the backend database') + '\n\n' +
+    chalk.yellow('   Auth commands triggered:') + '\n' +
+    chalk.dim('   • claude → runs "claude setup-token"') + '\n' +
+    chalk.dim('   • codex  → runs "codex login"') + '\n' +
+    chalk.dim('   • gemini → runs "gemini" (Google OAuth)'))
   .requiredOption('--as-provider', 'Register as a provider')
   .requiredOption('--tools <tools...>', 'AI tools to authenticate (e.g., claude codex)')
   .action(async (options) => {
@@ -74,8 +82,13 @@ program
   .description(chalk.magenta('🎧 Start listening for task requests') + '\n' +
     chalk.dim('   Run this to accept tasks and earn credits from your idle AI tools') + '\n' +
     chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)') + '\n\n' +
-    chalk.yellow('   Note: You must first register tools with:') + '\n' +
-    chalk.dim('   hokipoki register --as-provider --tools <tools...>'))
+    chalk.yellow('   Token validation:') + '\n' +
+    chalk.dim('   • Checks tokens for specified --tools only') + '\n' +
+    chalk.dim('   • If expired/missing → auto-triggers auth (opens browser)') + '\n' +
+    chalk.dim('   • Valid tokens → proceeds without interruption') + '\n\n' +
+    chalk.yellow('   Example:') + '\n' +
+    chalk.dim('   hokipoki listen --tools gemini') + '\n' +
+    chalk.dim('   → Only checks gemini token, opens browser if expired'))
   .requiredOption('-t, --tools <tools...>', 'AI tools to offer this session (e.g., claude codex gemini)')
   .option('-p, --port <port>', 'P2P connection port (default: 9090)', '9090')
   .option('-s, --server <url>', 'Relay server (default: wss://relay.hoki-poki.ai)', 'wss://relay.hoki-poki.ai')
