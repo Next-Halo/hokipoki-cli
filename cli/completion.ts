@@ -6,11 +6,12 @@ import tabtab from 'tabtab';
 const COMMANDS = ['register', 'listen', 'request', 'login', 'logout', 'whoami', 'dashboard', 'status', 'completion', 'help'];
 const TOOLS = ['claude', 'codex', 'gemini'];
 
-const MODELS: Record<string, string[]> = {
-  claude: ['sonnet', 'opus'],
-  gemini: ['flash', 'pro', 'flash-lite'],
-  codex: ['gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1']
-};
+// Model selection disabled for now - will be added later
+// const MODELS: Record<string, string[]> = {
+//   claude: ['sonnet', 'opus'],
+//   gemini: ['flash', 'pro', 'flash-lite'],
+//   codex: ['gpt-5.1-codex-max', 'gpt-5.1-codex', 'gpt-5.1-codex-mini', 'gpt-5.1']
+// };
 
 const OPTIONS: Record<string, string[]> = {
   register: ['--as-provider', '--tools', '--help'],
@@ -29,17 +30,7 @@ export function handleCompletion(): void {
   const env = tabtab.parseEnv(process.env);
   if (!env.complete) return;
 
-  const { prev, lastPartial, last } = env;
-
-  // Complete tool:model syntax (check this first - higher priority)
-  const partialToCheck = lastPartial || last || '';
-  if (partialToCheck.includes(':')) {
-    const [tool] = partialToCheck.split(':');
-    if (MODELS[tool]) {
-      tabtab.log(MODELS[tool].map(m => `${tool}:${m}`));
-      return;
-    }
-  }
+  const { prev } = env;
 
   // Complete commands
   if (prev === 'hokipoki') {

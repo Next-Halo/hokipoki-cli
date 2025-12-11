@@ -89,7 +89,7 @@ program
   .command('listen')
   .description(chalk.magenta('🎧 Start listening for task requests') + '\n' +
     chalk.dim('   Run this to accept tasks from your idle AI tools') + '\n' +
-    chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)') + '\n\n' +
+    chalk.dim('   Tasks execute on the provider\'s configured AI CLI') + '\n\n' +
     chalk.yellow('   Token validation:') + '\n' +
     chalk.dim('   • Checks tokens for specified --tools only') + '\n' +
     chalk.dim('   • If expired/missing → auto-triggers auth (opens browser)') + '\n' +
@@ -123,24 +123,16 @@ program
     chalk.red('   ⚠️  DO NOT use --interactive (causes hang/timeout)') + '\n' +
     chalk.dim('   AI mode auto-detected (non-TTY = AI mode)') + '\n' +
     chalk.dim('   Patches auto-applied, results in parseable format') + '\n\n' +
-    chalk.yellow('   Model selection syntax:') + '\n' +
-    chalk.dim('   --tool <tool>:<model>      # Specify tool and model') + '\n' +
-    chalk.dim('   --tool <tool>              # Use default model') + '\n\n' +
-    chalk.yellow('   Examples:') + '\n' +
-    chalk.dim('   --tool claude:sonnet             # or opus') + '\n' +
-    chalk.dim('   --tool gemini:flash              # or pro, flash-lite') + '\n' +
-    chalk.dim('   --tool codex:gpt-5.1-codex-mini  # or gpt-5.1-codex-max') + '\n' +
-    chalk.dim('   --tool claude                    # uses default model') + '\n\n' +
-    chalk.yellow('   Discover available models:') + '\n' +
-    chalk.dim('   claude --model             # Show current, list with /model') + '\n' +
-    chalk.dim('   gemini --list-models       # List Gemini models') + '\n' +
-    chalk.dim('   codex --model              # Show/set model') + '\n\n' +
+    chalk.yellow('   Available tools:') + '\n' +
+    chalk.dim('   --tool claude              # Anthropic Claude Code') + '\n' +
+    chalk.dim('   --tool codex               # OpenAI Codex CLI') + '\n' +
+    chalk.dim('   --tool gemini              # Google Gemini CLI') + '\n\n' +
     chalk.yellow('   Codex CLI sandbox configuration:') + '\n' +
     chalk.dim('   Codex sandbox blocks .git/ writes by default.') + '\n' +
     chalk.dim('   To enable auto-apply, add to ~/.codex/config.toml:') + '\n' +
     chalk.dim('     [sandbox_workspace_write]') + '\n' +
     chalk.dim('     writable_roots = [".git"]'))
-  .option('--tool <tool>', 'AI tool with optional model (e.g., claude:sonnet, gemini:flash, codex:gpt-5.1-codex)')
+  .option('--tool <tool>', 'AI tool to use (claude, codex, or gemini)')
   .requiredOption('--task <task>', 'Task description (what you need help with)')
   .option('--files <files...>', 'Specific files to include (e.g., src/main.ts)')
   .option('--dir <directories...>', 'Directories to include recursively')

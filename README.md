@@ -141,8 +141,8 @@ hokipoki completion --install
 exec $SHELL
 
 # Now use tab completion!
-hokipoki req[TAB]                    → hokipoki request
-hokipoki request --tool claude:[TAB] → shows sonnet, opus
+hokipoki req[TAB]              → hokipoki request
+hokipoki request --tool [TAB]  → shows claude, codex, gemini
 ```
 
 Supports: Bash, Zsh, Fish
