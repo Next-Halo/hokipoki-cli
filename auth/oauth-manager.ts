@@ -111,145 +111,79 @@ export class OAuthManager {
   }
 
   /**
-   * Authenticate Codex by reading from existing auth file
-   * User must have already run `codex login` to create ~/.codex/auth.json
+   * Authenticate Codex by running `codex login` which opens browser
+   * Then read the resulting token from ~/.codex/auth.json
    */
   private async authenticateCodexFromFile(): Promise<OAuthToken> {
-    console.log(chalk.cyan(`\n📂 Reading Codex authentication from ~/.codex/auth.json...`));
-    console.log(chalk.gray('Make sure you have run `codex login` first.\n'));
+    console.log(chalk.cyan(`\n🔐 Authenticating codex...`));
+    console.log(chalk.gray('This will open your browser for OpenAI authentication.\n'));
 
-    try {
-      const codexAuthPath = path.join(process.env.HOME || '', '.codex', 'auth.json');
-      const authData = JSON.parse(require('fs').readFileSync(codexAuthPath, 'utf8'));
+    const { spawn } = require('child_process');
 
-      // Extract expiry from JWT access_token
-      let expiryDate = new Date(Date.now() + 30 * 24 * 3600 * 1000); // Default 30 days
+    // Run `codex login` which triggers browser-based OAuth
+    const codexProcess = spawn('codex', ['login'], {
+      stdio: 'inherit'  // Show codex's output to user
+    });
 
-      if (authData.tokens && authData.tokens.access_token) {
-        try {
-          // Decode JWT to get expiry (JWT format: header.payload.signature)
-          const tokenParts = authData.tokens.access_token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString('utf8'));
-            if (payload.exp) {
-              // exp is Unix timestamp in seconds
-              const tokenExpiry = new Date(payload.exp * 1000);
-              expiryDate = tokenExpiry;
-              console.log(chalk.gray(`✓ Token expiry from JWT: ${tokenExpiry.toISOString()}`));
+    await new Promise((resolve, reject) => {
+      codexProcess.on('close', (code: number) => {
+        if (code === 0) resolve(code);
+        else reject(new Error(`codex login exited with code ${code}`));
+      });
+      codexProcess.on('error', (err: Error) => {
+        reject(new Error(`Failed to run 'codex login': ${err.message}. Is codex installed?`));
+      });
+    });
 
-              // Check if source tokens are already expired (do this AFTER try-catch)
-              if (tokenExpiry < new Date()) {
-                console.error(chalk.red('\n❌ Codex tokens in ~/.codex/auth.json are expired!'));
-                console.error(chalk.red(`   Token expired: ${tokenExpiry.toISOString()}`));
-                console.error(chalk.red(`   Current time:  ${new Date().toISOString()}`));
-                console.error(chalk.yellow('\nPlease run: codex login'));
-                throw new Error('Codex tokens expired - please re-authenticate');
-              }
-            }
-          }
-        } catch (jwtError: any) {
-          // Re-throw if it's our intentional "tokens expired" error
-          if (jwtError.message && jwtError.message.includes('expired')) {
-            throw jwtError;
-          }
-          // Otherwise it's a JWT parsing error, use default expiry
-          console.log(chalk.yellow(`⚠️  Could not parse JWT expiry: ${jwtError.message || jwtError}`));
-          console.log(chalk.yellow(`⚠️  Using default 30-day expiry`));
-        }
-      }
-
-      // Store the entire tokens object as a double-encoded JSON string
-      // to prevent it from being parsed during storage/retrieval
-      const tokensJson = JSON.stringify(authData.tokens);
-      const doubleEncoded = JSON.stringify(tokensJson); // Wrap in another layer
-
-      console.log(chalk.green(`✓ Codex tokens extracted from ~/.codex/auth.json`));
-      console.log(chalk.gray(`[DEBUG] Tokens JSON (double-encoded): ${doubleEncoded.substring(0, 100)}...`));
-
-      // Store the token
-      const oauthToken: OAuthToken = {
-        tool: 'codex',
-        accessToken: doubleEncoded,  // Store double-encoded to preserve as string
-        expiresAt: expiryDate,  // Use actual expiry from tokens
-        encryptedAt: new Date()
-      };
-
-      await this.storeToken(oauthToken);
-
-      console.log(chalk.green(`✅ Codex authenticated successfully from file`));
-      return oauthToken;
-
-    } catch (error) {
-      console.error(chalk.red('\n❌ Failed to read Codex auth file'));
-      console.error(chalk.red('Please run: codex login'));
-      throw new Error(`Failed to read Codex auth from ~/.codex/auth.json: ${error}`);
+    // Now read the token from file
+    const token = this.readCodexTokenSilently();
+    if (!token) {
+      throw new Error('Failed to get Codex token after authentication');
     }
+
+    // Store in cache
+    await this.storeToken(token);
+
+    console.log(chalk.green(`✅ Codex authenticated successfully`));
+    return token;
   }
 
   /**
-   * Authenticate Gemini by reading from existing OAuth file
-   * User must have authenticated via Gemini CLI to create ~/.gemini/oauth_creds.json
+   * Authenticate Gemini by running `gemini` which opens browser for Google OAuth
+   * Then read the resulting token from ~/.gemini/oauth_creds.json
    */
   private async authenticateGeminiFromFile(): Promise<OAuthToken> {
-    console.log(chalk.cyan(`\n📂 Reading Gemini authentication from ~/.gemini/oauth_creds.json...`));
-    console.log(chalk.gray('Make sure you have authenticated with Gemini CLI first.\n'));
+    console.log(chalk.cyan(`\n🔐 Authenticating gemini...`));
+    console.log(chalk.gray('This will open your browser for Google authentication.\n'));
 
-    try {
-      const geminiAuthPath = path.join(process.env.HOME || '', '.gemini', 'oauth_creds.json');
-      const authData = JSON.parse(require('fs').readFileSync(geminiAuthPath, 'utf8'));
+    const { spawn } = require('child_process');
 
-      // Parse expiry date
-      let expiryDate = new Date(Date.now() + 30 * 24 * 3600 * 1000); // Default 30 days
+    // Run `gemini` which triggers Google OAuth login
+    const geminiProcess = spawn('gemini', [], {
+      stdio: 'inherit'  // Show gemini's output to user
+    });
 
-      if (authData.expiry_date) {
-        const tokenExpiry = new Date(authData.expiry_date);
+    await new Promise((resolve, reject) => {
+      geminiProcess.on('close', (code: number) => {
+        if (code === 0) resolve(code);
+        else reject(new Error(`gemini exited with code ${code}`));
+      });
+      geminiProcess.on('error', (err: Error) => {
+        reject(new Error(`Failed to run 'gemini': ${err.message}. Is gemini CLI installed?`));
+      });
+    });
 
-        // Check if source tokens are already expired
-        if (tokenExpiry < new Date()) {
-          console.log(chalk.red('\n❌ Gemini OAuth token has expired!'));
-          console.log(chalk.yellow('   Token expired: ' + tokenExpiry.toISOString()));
-          console.log(chalk.yellow('   Current time:  ' + new Date().toISOString()));
-          console.log(chalk.cyan('\n   To refresh: Run `gemini` in your terminal to re-authenticate, then try again.\n'));
-          throw new Error('Gemini token expired. Run `gemini` to refresh your OAuth credentials.');
-        }
-
-        expiryDate = tokenExpiry;
-        console.log(chalk.gray(`✓ Using token expiry from source: ${tokenExpiry.toISOString()}`));
-      }
-
-      // Store the entire OAuth credentials object as a double-encoded JSON string
-      const credsJson = JSON.stringify(authData);
-      const doubleEncoded = JSON.stringify(credsJson); // Wrap in another layer
-
-      console.log(chalk.green(`✓ Gemini OAuth credentials extracted from ~/.gemini/oauth_creds.json`));
-      console.log(chalk.gray(`[DEBUG] OAuth creds (double-encoded): ${doubleEncoded.substring(0, 100)}...`));
-
-      // Store the token
-      const oauthToken: OAuthToken = {
-        tool: 'gemini',
-        accessToken: doubleEncoded,  // Store double-encoded to preserve as string
-        expiresAt: expiryDate,
-        encryptedAt: new Date()
-      };
-
-      await this.storeToken(oauthToken);
-
-      console.log(chalk.green(`✅ Gemini authenticated successfully from file`));
-      return oauthToken;
-
-    } catch (error: any) {
-      // Check if it's a file not found error
-      if (error.code === 'ENOENT' || (error.message && error.message.includes('ENOENT'))) {
-        console.error(chalk.red('\n❌ Gemini OAuth file not found'));
-        console.error(chalk.yellow('Please authenticate with Gemini CLI first to create ~/.gemini/oauth_creds.json'));
-        throw new Error('Gemini OAuth file not found - please authenticate with Gemini CLI first');
-      }
-
-      // For other errors (like JSON parse errors), show detailed message
-      console.error(chalk.red('\n❌ Failed to read Gemini OAuth file'));
-      console.error(chalk.red('Error: ' + (error.message || error)));
-      throw new Error(`Failed to read Gemini OAuth from ~/.gemini/oauth_creds.json: ${error}`);
+    // Now read the token from file
+    const token = this.readGeminiTokenSilently();
+    if (!token) {
+      throw new Error('Failed to get Gemini token after authentication');
     }
+
+    // Store in cache
+    await this.storeToken(token);
+
+    console.log(chalk.green(`✅ Gemini authenticated successfully`));
+    return token;
   }
 
   /**
@@ -445,22 +379,43 @@ export class OAuthManager {
 
   /**
    * Get token for specific tool
-   * ALWAYS reads fresh tokens from source files for claude, codex, gemini
+   * For codex/gemini: tries silent read first, triggers auth if expired/missing
+   * For claude: checks cache first, triggers auth if expired/missing
    */
   async getToken(tool: string): Promise<OAuthToken | null> {
-    // For claude, codex, and gemini: ALWAYS read from source files
-    // This ensures tokens are fresh after running `claude setup-token`, `codex login`, or gemini auth
-    if (tool === 'claude' || tool === 'codex' || tool === 'gemini') {
-      try {
-        console.log(chalk.gray(`[getToken] Reading fresh ${tool} tokens from source file...`));
-        return await this.authenticate(tool);
-      } catch (error) {
-        console.error(chalk.red(`[getToken] Failed to read ${tool} tokens from source:`), error);
-        return null;
-      }
+    // For codex: try silent read first
+    if (tool === 'codex') {
+      const token = this.readCodexTokenSilently();
+      if (token) return token;
+      // Expired/missing → trigger auth
+      console.log(chalk.yellow(`\n⚠️  Codex token expired or missing. Triggering authentication...`));
+      return await this.authenticate('codex');
     }
 
-    // For other tools, use cached tokens
+    // For gemini: try silent read first
+    if (tool === 'gemini') {
+      const token = this.readGeminiTokenSilently();
+      if (token) return token;
+      // Expired/missing → trigger auth
+      console.log(chalk.yellow(`\n⚠️  Gemini token expired or missing. Triggering authentication...`));
+      return await this.authenticate('gemini');
+    }
+
+    // For claude: check cache first
+    if (tool === 'claude') {
+      try {
+        const cachedTokens = await this.loadTokens();
+        const cached = cachedTokens.find(t => t.tool === 'claude');
+        if (cached && new Date(cached.expiresAt) > new Date()) return cached;
+      } catch {
+        // Cache not available, continue to auth
+      }
+      // Expired/missing → trigger auth
+      console.log(chalk.yellow(`\n⚠️  Claude token expired or missing. Triggering authentication...`));
+      return await this.authenticate('claude');
+    }
+
+    // For other tools, use cached tokens only
     try {
       const tokens = await this.loadTokens();
       return tokens.find(t => t.tool === tool) || null;
@@ -481,33 +436,105 @@ export class OAuthManager {
   }
 
   /**
+   * Silently read Codex token from file (no auth flow, no logging)
+   * Returns OAuthToken if valid, null if expired/missing
+   */
+  private readCodexTokenSilently(): OAuthToken | null {
+    const fsSync = require('fs');
+    const pathMod = require('path');
+    try {
+      const codexAuthPath = pathMod.join(process.env.HOME || '', '.codex', 'auth.json');
+      const authData = JSON.parse(fsSync.readFileSync(codexAuthPath, 'utf8'));
+
+      if (!authData.tokens?.access_token) return null;
+
+      // Parse JWT expiry (codex tokens are valid for ~1 year)
+      let expiryDate = new Date(Date.now() + 365 * 24 * 3600 * 1000);
+      const parts = authData.tokens.access_token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+        if (payload.exp) expiryDate = new Date(payload.exp * 1000);
+      }
+
+      if (expiryDate < new Date()) return null; // Expired
+
+      const tokensJson = JSON.stringify(authData.tokens);
+      return {
+        tool: 'codex',
+        accessToken: JSON.stringify(tokensJson), // Double-encoded
+        expiresAt: expiryDate,
+        encryptedAt: new Date()
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Silently read Gemini token from file (no auth flow, no logging)
+   * Returns OAuthToken if valid, null if expired/missing
+   */
+  private readGeminiTokenSilently(): OAuthToken | null {
+    const fsSync = require('fs');
+    const pathMod = require('path');
+    try {
+      const geminiAuthPath = pathMod.join(process.env.HOME || '', '.gemini', 'oauth_creds.json');
+      const authData = JSON.parse(fsSync.readFileSync(geminiAuthPath, 'utf8'));
+
+      if (!authData.access_token) return null;
+
+      let expiryDate = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      if (authData.expiry_date) expiryDate = new Date(authData.expiry_date);
+
+      if (expiryDate < new Date()) return null; // Expired
+
+      const credsJson = JSON.stringify(authData);
+      return {
+        tool: 'gemini',
+        accessToken: JSON.stringify(credsJson), // Double-encoded
+        expiresAt: expiryDate,
+        encryptedAt: new Date()
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Silently check if a tool's source file exists and has valid token (no auth flow triggered)
+   */
+  private hasValidSourceToken(tool: string): boolean {
+    if (tool === 'codex') return this.readCodexTokenSilently() !== null;
+    if (tool === 'gemini') return this.readGeminiTokenSilently() !== null;
+    // Claude uses hokipoki cache, no external source file to check
+    return false;
+  }
+
+  /**
    * Get all authenticated tools
-   * For claude/codex/gemini, checks source files directly (same as getToken)
+   * For codex/gemini, checks source files silently (no auth flow triggered)
+   * For claude and others, checks encrypted cache
    * This allows picking up fresh tokens after running native CLI without re-registering
    */
   async getAuthenticatedTools(): Promise<string[]> {
     const authenticatedTools: string[] = [];
 
-    // For claude/codex/gemini, check source files directly (same as getToken)
-    for (const tool of ['claude', 'codex', 'gemini']) {
-      try {
-        const token = await this.authenticate(tool);
-        if (token && new Date(token.expiresAt) > new Date()) {
-          authenticatedTools.push(tool);
-        }
-      } catch {
-        // Tool not available from source, skip
+    // For codex/gemini, silently check source files (no interactive auth)
+    for (const tool of ['codex', 'gemini']) {
+      if (this.hasValidSourceToken(tool)) {
+        authenticatedTools.push(tool);
       }
     }
 
-    // For other tools, check encrypted cache
+    // For claude and other tools, check encrypted cache
     try {
       const cachedTokens = await this.loadTokens();
       for (const token of cachedTokens) {
-        if (!['claude', 'codex', 'gemini'].includes(token.tool)) {
-          if (new Date(token.expiresAt) > new Date()) {
-            authenticatedTools.push(token.tool);
-          }
+        // Skip tools we already found in source files
+        if (authenticatedTools.includes(token.tool)) continue;
+
+        if (new Date(token.expiresAt) > new Date()) {
+          authenticatedTools.push(token.tool);
         }
       }
     } catch {
