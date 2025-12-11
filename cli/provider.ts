@@ -115,7 +115,11 @@ export class ProviderCommand {
     this.availableTools = this.availableTools.map(t => t.toLowerCase());
 
     // Validate all requested tools are in SUPPORTED_TOOLS
-    const unsupportedTools = this.availableTools.filter(t => !SUPPORTED_TOOLS.includes(t));
+    // Extract base tool name (handle tool:model syntax like codex:opus)
+    const unsupportedTools = this.availableTools.filter(t => {
+      const baseTool = t.split(':')[0];
+      return !SUPPORTED_TOOLS.includes(baseTool);
+    });
     if (unsupportedTools.length > 0) {
       console.log(chalk.red(`\n❌ Unsupported tool(s): ${unsupportedTools.join(', ')}`));
       console.log(chalk.yellow(`Supported tools: ${SUPPORTED_TOOLS.join(', ')}`));
@@ -138,8 +142,11 @@ export class ProviderCommand {
       const data = await response.json() as { tools: string[] };
       const registeredTools = data.tools || [];
 
-      // Check that all requested tools are registered
-      const unregisteredTools = this.availableTools.filter(t => !registeredTools.includes(t));
+      // Check that all requested tools are registered (extract base tool name for comparison)
+      const unregisteredTools = this.availableTools.filter(t => {
+        const baseTool = t.split(':')[0];
+        return !registeredTools.includes(baseTool);
+      });
       if (unregisteredTools.length > 0) {
         console.log(chalk.red(`\n❌ Tool(s) not registered: ${unregisteredTools.join(', ')}`));
         console.log(chalk.yellow('Please register your tools first:'));
@@ -153,9 +160,12 @@ export class ProviderCommand {
       console.log(chalk.gray('   Continuing with local token validation only...'));
     }
 
-    // Also validate local OAuth tokens exist
+    // Also validate local OAuth tokens exist (extract base tool name for comparison)
     const locallyValidatedTools = await this.detectAvailableTools();
-    const missingLocalTokens = this.availableTools.filter(t => !locallyValidatedTools.includes(t));
+    const missingLocalTokens = this.availableTools.filter(t => {
+      const baseTool = t.split(':')[0];
+      return !locallyValidatedTools.includes(baseTool);
+    });
     if (missingLocalTokens.length > 0) {
       console.log(chalk.red(`\n❌ Missing local tokens for: ${missingLocalTokens.join(', ')}`));
       console.log(chalk.yellow('Please refresh your local tokens:'));
