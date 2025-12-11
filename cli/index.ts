@@ -35,7 +35,7 @@ function showBanner() {
     console.log(chalk.dim.italic('     That\'s what it\'s all about! ♫\n'));
 
     console.log(chalk.rgb(0, 232, 217).bold('          P2P AI MARKETPLACE'));
-    console.log(chalk.gray('     Rent AI tools, earn credits'));
+    console.log(chalk.gray('     Share AI tools, get AI help'));
     console.log(chalk.dim('     ( serious tech, silly soul )\n'));
 
     // Helpful tip for getting detailed help
@@ -52,7 +52,7 @@ showBanner();
 program
   .name('hokipoki')
   .description(chalk.bold('Decentralized P2P marketplace for AI CLI tools') + '\n\n' +
-    chalk.dim('  Share your idle AI subscriptions, earn credits.\n') +
+    chalk.dim('  Share your idle AI subscriptions.\n') +
     chalk.dim('  Request help from any AI tool, pay per use.\n'))
   .version(version);
 
@@ -80,7 +80,7 @@ program
 program
   .command('listen')
   .description(chalk.magenta('🎧 Start listening for task requests') + '\n' +
-    chalk.dim('   Run this to accept tasks and earn credits from your idle AI tools') + '\n' +
+    chalk.dim('   Run this to accept tasks from your idle AI tools') + '\n' +
     chalk.dim('   Tasks will specify which model to use (e.g., claude:model-name)') + '\n\n' +
     chalk.yellow('   Token validation:') + '\n' +
     chalk.dim('   • Checks tokens for specified --tools only') + '\n' +
@@ -151,7 +151,7 @@ program
 // Authentication commands
 program
   .command('login')
-  .description(chalk.cyan('🔐 Authenticate with Keycloak') + '\n' +
+  .description(chalk.cyan('🔐 Authenticate with HokiPoki') + '\n' +
     chalk.dim('   Required before using any other command'))
   .action(async () => {
     try {
@@ -173,7 +173,7 @@ program
 
 program
   .command('logout')
-  .description(chalk.cyan('🚪 Logout from Keycloak') + '\n' +
+  .description(chalk.cyan('🚪 Logout from HokiPoki') + '\n' +
     chalk.dim('   Remove local authentication token'))
   .action(async () => {
     try {
@@ -226,7 +226,7 @@ program
 program
   .command('dashboard')
   .description(chalk.yellow('📊 Open the web dashboard') + '\n' +
-    chalk.dim('   View your stats, credits, and transaction history'))
+    chalk.dim('   View your stats and task history'))
   .action(() => {
     const dashboardUrl = 'https://app.hoki-poki.ai/dashboard';
     console.log(chalk.cyan(`\n🌐 Opening dashboard at ${dashboardUrl}\n`));
@@ -245,8 +245,8 @@ program
 // Status command
 program
   .command('status')
-  .description(chalk.blue('💳 Check account status and credits') + '\n' +
-    chalk.dim('   See your balance, completed tasks, and reputation'))
+  .description(chalk.blue('📊 Check account status') + '\n' +
+    chalk.dim('   See your completed tasks and reputation'))
   .option('--provider', 'Show provider-specific stats')
   .action(async (options) => {
     if (options.provider) {
@@ -283,7 +283,6 @@ program
         console.log(chalk.green(`  📤 Tasks Requested: ${chalk.bold(requestedCount)}`));
         console.log(chalk.magenta(`  📥 Tasks Provided: ${chalk.bold(providedCount)}`));
         console.log('');
-        console.log(chalk.gray('  💳 Credits: coming soon\n'));
       } catch (error: any) {
         console.error(chalk.red('Error:'), error.message);
         process.exit(1);
