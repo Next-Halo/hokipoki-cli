@@ -277,7 +277,7 @@ module.exports = { sort };
         const authHeader = req.headers.authorization;
         let token: string | null = null;
 
-        console.log(chalk.gray(`[Git Server] DEBUG: Request headers:`, JSON.stringify(req.headers, null, 2)));
+        console.log(chalk.gray(`[Git Server] Processing ${req.method} request to ${req.url}`));
 
         if (authHeader) {
           if (authHeader.startsWith('Bearer ')) {
@@ -288,12 +288,12 @@ module.exports = { sort };
             // HTTP Basic Auth format: "Basic base64(username:password)"
             // Git sends credentials as base64(token:x-oauth-basic)
             const base64Credentials = authHeader.substring(6);
-            console.log(chalk.gray(`[Git Server] DEBUG: Found Basic auth, base64: ${base64Credentials.substring(0, 20)}...`));
+            console.log(chalk.gray(`[Git Server] DEBUG: Found Basic auth`));
             const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-            console.log(chalk.gray(`[Git Server] DEBUG: Decoded credentials: ${credentials.substring(0, 20)}...`));
+            console.log(chalk.gray(`[Git Server] DEBUG: Decoded credentials`));
             const [username] = credentials.split(':');
             token = username; // The username is the token
-            console.log(chalk.gray(`[Git Server] DEBUG: Extracted token from Basic auth: ${token?.substring(0, 8)}...`));
+            console.log(chalk.gray(`[Git Server] DEBUG: Extracted token from Basic auth`));
           }
         } else {
           console.log(chalk.yellow(`[Git Server] DEBUG: No Authorization header found`));
@@ -309,8 +309,7 @@ module.exports = { sort };
 
         if (token !== this.oneTimeToken) {
           console.log(chalk.red(`[Git Server] Unauthorized access attempt - invalid token`));
-          console.log(chalk.gray(`[Git Server] Expected token: ${this.oneTimeToken.substring(0, 8)}...`));
-          console.log(chalk.gray(`[Git Server] Received token: ${token?.substring(0, 8) || 'none'}...`));
+          console.log(chalk.gray(`[Git Server] Token mismatch - authentication failed`));
           res.writeHead(401, {
             'Content-Type': 'text/plain',
             'WWW-Authenticate': 'Basic realm="Git"'

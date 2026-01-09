@@ -418,18 +418,13 @@ function executeAITool(): string {
     const codexAuthPath = path.join(codexConfigDir, 'auth.json');
     let tokensObject;
 
-    console.log('[EXECUTOR] DEBUG: Token type:', typeof token);
-    console.log('[EXECUTOR] DEBUG: Token first 200 chars:', token.substring(0, 200));
-
     try {
       // Double-decode: first parse gets the JSON string, second parse gets the object
       const jsonString = JSON.parse(token); // First decode
-      console.log('[EXECUTOR] DEBUG: After first decode type:', typeof jsonString);
       tokensObject = JSON.parse(jsonString); // Second decode to get actual object
-      console.log('[EXECUTOR] DEBUG: Successfully double-decoded tokens');
     } catch (error) {
       console.error('[EXECUTOR] ERROR: Failed to parse Codex tokens JSON:', error);
-      console.error('[EXECUTOR] Token value:', token.substring(0, 100)); // Show first 100 chars
+      console.error('[EXECUTOR] Failed to parse Codex token - invalid JSON format');
 
       // Try to fix if it's already an object
       if (typeof token === 'object') {
@@ -467,20 +462,15 @@ function executeAITool(): string {
     const geminiAuthPath = path.join(geminiConfigDir, 'oauth_creds.json');
     let oauthCreds;
 
-    console.log('[EXECUTOR] DEBUG: Setting up Gemini OAuth credentials');
-    console.log('[EXECUTOR] DEBUG: Token type:', typeof token);
-    console.log('[EXECUTOR] DEBUG: Token first 100 chars:', token.substring(0, 100));
+    console.log('[EXECUTOR] Setting up Gemini OAuth credentials');
 
     try {
       // Double-decode: first parse gets the JSON string, second parse gets the object
       const jsonString = JSON.parse(token); // First decode
-      console.log('[EXECUTOR] DEBUG: After first decode type:', typeof jsonString);
-      console.log('[EXECUTOR] DEBUG: After first decode first 100 chars:', jsonString.substring(0, 100));
       oauthCreds = JSON.parse(jsonString); // Second decode to get actual object
-      console.log('[EXECUTOR] DEBUG: Successfully double-decoded Gemini OAuth creds');
     } catch (error) {
       console.error('[EXECUTOR] ERROR: Failed to parse Gemini OAuth JSON:', error);
-      console.error('[EXECUTOR] Token value:', token.substring(0, 200));
+      console.error('[EXECUTOR] Failed to parse Gemini OAuth credentials - invalid JSON format');
 
       // Try to fix if it's already an object
       if (typeof token === 'object') {

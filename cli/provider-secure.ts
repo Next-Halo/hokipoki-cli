@@ -147,7 +147,6 @@ export class SecureProviderCLI {
     console.log(chalk.cyan('[DEBUG] executeTaskInContainer called with:'));
     console.log(chalk.gray('  Task ID:'), task.id);
     console.log(chalk.gray('  Tool:'), task.tool);
-    console.log(chalk.gray('  Git URL:'), task.gitUrl);
     console.log(chalk.gray('  Description:'), task.description);
 
     const spinner = ora('Preparing secure execution environment...').start();

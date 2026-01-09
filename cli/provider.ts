@@ -379,7 +379,7 @@ export class ProviderCommand {
 
     this.p2pConnection.on('data', async (data: any) => {
       try {
-        console.log(chalk.gray(`[DEBUG] Received P2P data:`, JSON.stringify(data, null, 2)));
+        console.log(chalk.gray(`[DEBUG] Received P2P message type: ${data.type}`));
         await this.handleP2PData(data, message.taskId);
       } catch (error) {
         console.error(chalk.red('[ERROR] Failed to handle P2P data:'), error);
@@ -431,7 +431,7 @@ export class ProviderCommand {
    */
   private async executeTaskSecurely(payload: any, taskId: string) {
     console.log(chalk.cyan('\n📦 Preparing secure execution...'));
-    console.log(chalk.gray('[DEBUG] Payload received:'), JSON.stringify(payload, null, 2));
+    console.log(chalk.gray('[DEBUG] Preparing task execution'));
 
     try {
       // Store task info
@@ -444,7 +444,7 @@ export class ProviderCommand {
         gitToken: payload.gitToken
       };
 
-      console.log(chalk.gray('[DEBUG] Task stored:'), JSON.stringify(this.currentTask, null, 2));
+      console.log(chalk.gray('[DEBUG] Task stored with ID:', this.currentTask.id));
       console.log(chalk.cyan('[DEBUG] Calling secureProvider.executeTaskInContainer...'));
       console.log(chalk.cyan('[DEBUG] SecureProvider exists?'), !!this.secureProvider);
 
